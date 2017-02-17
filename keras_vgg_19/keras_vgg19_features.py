@@ -17,4 +17,8 @@ x = np.expand_dims(x, axis=0)
 x = preprocess_input(x)
 
 block4_pool_features = model.predict(x)
+np.save(file='block4_pool_features', arr=block4_pool_features)
 print block4_pool_features
+
+features_loaded = np.load('block4_pool_features.npy')
+assert np.array_equal(block4_pool_features, features_loaded)
