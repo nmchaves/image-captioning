@@ -5,13 +5,29 @@ from keras.layers import LSTM
 #keras code
 # next, let's define a RNN model that encodes sequences of words
 # into sequences of 128-dimensional word vectors.
+
+sample image = tf.zeros(shape=(nb_samples,max_caption_len,128))
+sample_caption 
+
+
+# config
+vocab_size = 10
+max_caption_len = 10
+
+nb_samples = 10
+height = 10
+width = 10
+
 language_model = Sequential()
 language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
 language_model.add(GRU(output_dim=128, return_sequences=True))
 language_model.add(TimeDistributed(Dense(128)))
 
 # let's repeat the image vector to turn it into a sequence.
-image_model.add(RepeatVector(max_caption_len))
+# image_model.add(RepeatVector(max_caption_len))
+
+
+# images = max_caption_len * image
 
 # the output of both models will be tensors of shape (samples, max_caption_len, 128).
 # let's concatenate these 2 vector sequences.
