@@ -1,5 +1,15 @@
 from keras.preprocessing.text import text_to_word_sequence
 from keras.preprocessing import sequence
+from keras.preprocessing import image
+from keras.applications.imagenet_utils import preprocess_input
+import numpy as np
+
+
+def preprocess_image(img_path):
+    img = image.load_img(img_path, target_size=(224, 224))
+    x = image.img_to_array(img)
+    x = np.expand_dims(x, axis=0)
+    return preprocess_input(x)
 
 
 def preprocess_captions(captions):
