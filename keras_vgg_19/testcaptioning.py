@@ -1,4 +1,4 @@
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
     Embedding, TimeDistributed, GRU, RepeatVector, Merge
 from keras.applications import VGG19
@@ -8,8 +8,18 @@ import numpy as np
 from keras.preprocessing import sequence
 import pickle
 
+
 with open('savedoc', 'rb') as handle:
     data = pickle.load(handle)
+
+
+def list_of_words_to_caption(wordlist,word_to_idx,max_caption_len):
+    word_to_idx[""] = 0
+    out = np.zeros(max_caption_len)
+    for i,x in enumerate(wordlist):
+        out[i] = word_to_idx[x]
+    out = out.reshape([1,max_caption_len])
+    return out
 
 # img = data[0][0][0]
 # cap = data[0][0][1][0].reshape(1,16)
@@ -22,7 +32,7 @@ with open('savedoc', 'rb') as handle:
 # print(cap.shape)
 
 # # ideal
-X,y,vocab_size,idx_to_word = data  # ideally, Xand y should be tensors, right? well, X should be two tensors
+X,y,vocab_size,idx_to_word,word_to_idx = data  # ideally, Xand y should be tensors, right? well, X should be two tensors
 images = X[0] #shape (batch_size,224,224,3)
 captions = X[1] # (batch_size,16)
 next_words = y # vocab_size 
@@ -140,8 +150,24 @@ if __name__ == '__main__':
 
     captions = np.zeros((17,10))
     captions[0][0] = 10
-    model.fit(X, y, batch_size=10, nb_epoch=5)
-    result = model.predict(new_image,X[1][0].reshape([1,10]) ])
+    # model.fit(X, y, batch_size=10, nb_epoch=5)
+    # model.save("modelweights")
+    # del model
+    # model = load_model("modelweights")
+
     # print result   
-    out = sample(result[0])
-    print(idx_to_word[out])
+    # out = sample(result[0])
+
+    # init = np.zeros(len(captions[0])) 
+    # print(word_to_idx)
+    #sampling loop
+    # print(list_of_words_to_caption(['', 'view', 'all', 'of', 'empty', 'of', 'of', 'empty', 'of', 'bathroom', 'decorated'],word_to_idx,len(captions[0])))
+    gen = [""]
+    while len(gen) < 10: 
+        result = model.predict([new_image, list_of_words_to_caption(gen,word_to_idx,len(captions[0]))])
+        out = idx_to_word[sample(result[0])]
+        gen.append(out)
+        print(gen)
+
+        
+    #
