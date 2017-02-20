@@ -118,10 +118,10 @@ if __name__ == '__main__':
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
     # sentences = ["START A cat with white fur END"]
-    # images_path = ['cat.jpg']
+    # new_image_path = ['cat.jpg']
     # images_2, partial_captions, next_words = preprocess_img_and_text(images_path, sentences)
 
-    # image = preprocess_image('cat.jpg')
+    new_image = preprocess_image('cat.jpg')
 
     # print "next",next_words.shape
     # print "shape partial_captions", partial_captions.shape
@@ -140,8 +140,8 @@ if __name__ == '__main__':
 
     captions = np.zeros((17,10))
     captions[0][0] = 10
-    # model.fit([X[0],captions], y, batch_size=2, nb_epoch=5)
-    result = model.predict([X[0][0].reshape([1,224,224,3]),X[1][0].reshape([1,10]) ])
+    model.fit(X, y, batch_size=10, nb_epoch=5)
+    result = model.predict(new_image,X[1][0].reshape([1,10]) ])
     # print result   
     out = sample(result[0])
     print(idx_to_word[out])
