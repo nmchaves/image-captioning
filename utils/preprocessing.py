@@ -4,12 +4,23 @@ from keras.preprocessing import image
 from keras.applications.imagenet_utils import preprocess_input
 import numpy as np
 
-
 def preprocess_image(img_path):
     img = image.load_img(img_path, target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     return preprocess_input(x)
+
+
+def repeat_imgs(imgs, captions):
+    # TODO: don't recompute caption_seqs! Need to improve API
+    caption_seqs = [text_to_word_sequence(c) for c in captions]
+    partial_cap_lengths = [len(seq)-1 for seq in caption_seqs]
+    imgs_rep = sum(partial_cap_lengths)*[None]
+    start = 0
+    for i, pc_len in enumerate(partial_cap_lengths):
+        imgs_rep[start:start+pc_len] = imgs[i]
+        start += pc_len
+    return imgs_rep
 
 
 def preprocess_captions(captions):
@@ -25,7 +36,14 @@ def preprocess_captions(captions):
 
     partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx)
 
-    return unique, word_to_idx, idx_to_word, partial_caps, next_words
+    # Convert next_words into a binary matrix. Use `vocab_size`+1 columns so that we can
+    # use regular indexing to access the 1-based words.
+    vocab_size = len(unique)
+    next_words_binary = np.zeros((len(partial_caps), vocab_size+1))
+    for i,nxt in enumerate(next_words):
+        next_words_binary[i,nxt] = 1.0
+
+    return unique, word_to_idx, idx_to_word, partial_caps, next_words_binary
 
 
 def unique_words(caption_seqs):
@@ -51,6 +69,9 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx):
     partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_caption_len-1, padding='post')
     return partial_caps, next_words
 
+
+def get_captions():
+    return 0
 
 if __name__ == '__main__':
     captions = ['a cat with fur', 'the dog has teeth']
