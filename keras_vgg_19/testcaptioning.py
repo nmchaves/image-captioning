@@ -2,15 +2,13 @@ from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
     Embedding, TimeDistributed, GRU, RepeatVector, Merge
 from keras.applications import VGG19
+from keras.preprocessing.text import text_to_word_sequence
 from keras.preprocessing import image
 from keras.applications.imagenet_utils import preprocess_input, decode_predictions
 import numpy as np
 from keras.preprocessing import sequence
 import pickle
-
-
-with open('savedoc', 'rb') as handle:
-    data = pickle.load(handle)
+from utils.preprocessing import preprocess_image, repeat_imgs
 
 
 def list_of_words_to_caption(wordlist,word_to_idx,max_caption_len):
@@ -31,12 +29,6 @@ def list_of_words_to_caption(wordlist,word_to_idx,max_caption_len):
 
 # print(cap.shape)
 
-# # ideal
-X,y,vocab_size,idx_to_word,word_to_idx = data  # ideally, Xand y should be tensors, right? well, X should be two tensors
-images = X[0] #shape (batch_size,224,224,3)
-captions = X[1] # (batch_size,16)
-next_words = y # vocab_size 
-
 # print(captions),"CAPTIONS"
 # image = images[0]
 # caption = captions[0]
@@ -45,44 +37,6 @@ next_words = y # vocab_size
 # print(images.shape,captions.shape)
 
 # vocab_size = 7
-
-def preprocess_image(img_path):
-    img = image.load_img(img_path, target_size=(224, 224))
-    img = image.img_to_array(img)
-    img = np.expand_dims(img, axis=0)
-    img = preprocess_input(img)
-    return img
-
-def preprocess_img_and_text(images, sentences):
-    images = [preprocess_image(image) for image in images]
-    images = np.asarray(images)
-
-
-    words = [s.split() for s in sentences]
-    unique = []
-    for word in words:
-        unique.extend(word)
-    unique = list(set(unique))
-    word_index = {}
-    index_word = {}
-    for i,word in enumerate(unique):
-        word_index[word] = i
-        index_word[i] = word
-
-    partial_captions = []
-    for s in sentences:
-        one = [word_index[txt] for txt in s.split()]
-        partial_captions.append(one)
-
-    partial_captions = sequence.pad_sequences(partial_captions, maxlen=max_caption_len,padding='post')
-    next_words = np.zeros((1,vocab_size))
-    for i,s in enumerate(sentences):
-        text = s.split()
-        x = [word_index[txt] for txt in text]
-        x = np.asarray(x)
-        next_words[i,x] = 1
-
-    return images, partial_captions, next_words
 
 
 def sample(preds, temperature=1.0):
@@ -95,8 +49,17 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 if __name__ == '__main__':
-    max_caption_len = 10
-    vocab_size = vocab_size #10000
+
+    with open('../savedoc', 'rb') as handle:
+        data = pickle.load(handle)
+
+    # # ideal
+    X,y,captions,vocab_size,idx_to_word,word_to_idx = data  # ideally, Xand y should be tensors, right? well, X should be two tensors
+    images = X[0] #shape (batch_size,224,224,3)
+    partial_captions = X[1] # (batch_size,16)
+    next_words = y # vocab_size
+
+    max_caption_len = partial_captions.shape[1]
 
     initial_model = VGG19(weights="imagenet", include_top=True)
     flat = initial_model.get_layer('flatten').output
@@ -106,7 +69,8 @@ if __name__ == '__main__':
     # next, let's define a RNN model that encodes sequences of words
     # into sequences of 128-dimensional word vectors.
     language_model = Sequential()
-    language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
+    # TODO: check if better way to handle off by 1 error with vocab_size
+    language_model.add(Embedding(vocab_size+1, 256, input_length=max_caption_len))
     language_model.add(GRU(output_dim=128, return_sequences=True))
     language_model.add(TimeDistributed(Dense(128)))
 
@@ -122,7 +86,7 @@ if __name__ == '__main__':
     model.add(GRU(256, return_sequences=False))
     # which will be used to compute a probability
     # distribution over what the next word in the caption should be!
-    model.add(Dense(vocab_size))
+    model.add(Dense(vocab_size+1))
     model.add(Activation('softmax'))
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
@@ -148,9 +112,10 @@ if __name__ == '__main__':
     # model.fit([np.zeros((17,224,224,3)),np.zeros((17,10))], np.zeros((17,15)), batch_size=2, nb_epoch=5)
     # print captions.shape
 
-    captions = np.zeros((17,10))
-    captions[0][0] = 10
-    # model.fit(X, y, batch_size=10, nb_epoch=5)
+    #captions = np.zeros((17,10))
+    #captions[0][0] = 10
+    imgs_rep = repeat_imgs(images, captions)
+    model.fit([imgs_rep, partial_captions], next_words, batch_size=10, nb_epoch=5)
     # model.save("modelweights")
     # del model
     # model = load_model("modelweights")
@@ -164,7 +129,7 @@ if __name__ == '__main__':
     # print(list_of_words_to_caption(['', 'view', 'all', 'of', 'empty', 'of', 'of', 'empty', 'of', 'bathroom', 'decorated'],word_to_idx,len(captions[0])))
     gen = [""]
     while len(gen) < 10: 
-        result = model.predict([new_image, list_of_words_to_caption(gen,word_to_idx,len(captions[0]))])
+        result = model.predict([new_image, list_of_words_to_caption(gen,word_to_idx,len(partial_captions[0]))])
         out = idx_to_word[sample(result[0])]
         gen.append(out)
         print(gen)

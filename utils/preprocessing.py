@@ -15,12 +15,12 @@ def repeat_imgs(imgs, captions):
     # TODO: don't recompute caption_seqs! Need to improve API
     caption_seqs = [text_to_word_sequence(c) for c in captions]
     partial_cap_lengths = [len(seq)-1 for seq in caption_seqs]
-    imgs_rep = sum(partial_cap_lengths)*[None]
+    imgs_rep = np.zeros((sum(partial_cap_lengths), 224, 224, 3))
     start = 0
     for i, pc_len in enumerate(partial_cap_lengths):
-        imgs_rep[start:start+pc_len] = imgs[i]
+        imgs_rep[start:start+pc_len, :] = imgs[i]
         start += pc_len
-    return imgs_rep
+    return np.asarray(imgs_rep)
 
 
 def preprocess_captions(captions):

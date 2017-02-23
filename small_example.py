@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     # The actual images as numpy arrays
     images = [preprocess_image('%s/images/%s/%s' % (datasetDir, datasetType, img['file_name'])) for img in coco_imgs]
-    images = np.asarray(images)
+    images = np.squeeze(np.asarray(images))
 
     # initialize COCO api for caption annotations
     capsAnnFile = '%s/annotations/captions_%s.json'%(datasetDir, datasetType)
@@ -67,9 +67,9 @@ if __name__ == '__main__':
     vocab_size = len(unique)
 
     # Save data
-    X = [images, np.asarray(captions)]
+    X = [images, np.asarray(partial_caps)]
     y = np.asarray(next_words)
-    out = X,y,vocab_size,idx_to_word, word_to_idx
+    out = X,y,captions,vocab_size,idx_to_word, word_to_idx
     pickle.dump(out, open( "savedoc", "r+" ))
 
 
