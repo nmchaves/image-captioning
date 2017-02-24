@@ -13,6 +13,24 @@ from keras.preprocessing import sequence
 import pickle
 from utils.preprocessing import preprocess_image, repeat_imgs
 
+#
+
+#todo
+# load the partial captions along with ids, and next words, from separate h5py files, along with max_caption_length
+
+#todo
+#go through and substitute each id for an image looked up from preprocessed directory (see vgg_run)
+
+#todo
+#X = blah
+# y = blah
+
+#train and save
+
+#further down the line
+    #write char lstm model
+    #pragmatic training with referring expressions
+
 
 def list_of_words_to_caption(wordlist,word_to_idx,max_caption_len):
     word_to_idx[""] = 0
