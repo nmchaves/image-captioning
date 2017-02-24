@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../') # needed for Azure VM to see utils directory
+
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
     Embedding, TimeDistributed, GRU, RepeatVector, Merge
