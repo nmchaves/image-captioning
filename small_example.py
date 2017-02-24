@@ -21,13 +21,15 @@ if __name__ == '__main__':
     # Get image ids of all images containing human beings
     categoryIds = refexp.getCatIds(catNms=['person'])
     imgIds = refexp.getImgIds(catIds=categoryIds)
+    nImgsAvailable = len(imgIds)
 
     # Select 2 random images
-    nImages = 2
-    randImgIndices = np.random.randint(0, len(imgIds), size=nImages)
-    randImgIds = [imgIds[idx] for idx in randImgIndices]
+    nImgsDesired = 2
+    nImgs = min(nImgsDesired, nImgsAvailable)
+    np.random.seed(0)
+    randImgIndices = np.random.choice(np.arange(0, nImgs), size=(nImgs, 1), replace=False)
+    randImgIds = [imgIds[int(idx)] for idx in randImgIndices]
 
-    # TODO: double-check that you don't need to access element 0 of each coco img
     coco_imgs = refexp.loadImgs(randImgIds)
 
     # The actual images as numpy arrays
