@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     # Select 2 random images
     nImages = 2
-    randImgIndices = np.random.randint(0, len(imgIds), size=nImages)
+    randImgIndices = np.random.choice(np.arange(0, len(imgIds)), size=(nImages, 1), replace=True)
     randImgIds = [imgIds[idx] for idx in randImgIndices]
 
     # TODO: double-check that you don't need to access element 0 of each coco img
