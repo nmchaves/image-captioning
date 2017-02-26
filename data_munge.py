@@ -45,41 +45,44 @@ captions = json.loads(captions.read())
 # X1 = []
 # X2 = []
 # y = []
+num_of_caps = 1000
 
 sentences = []
-for x in captions['annotations'][:2]:
+for i,x in enumerate(captions['annotations']):
 	sentences.append(str(x['caption']))
-
+	print(i)
 
 unique, word_to_idx, idx_to_word, partial_caps, next_words = (preprocess_captions(sentences))
 
 vocab_size = len(word_to_idx)+1
 # print "NEXT WORDS",next_words
 
-new_next_words = []
-for x in next_words:
-	a = np.zeros(vocab_size)
-	a[x-1] = 1
-	new_next_words.append(a)
-next_words = new_next_words
+# new_next_words = []
+# for x in next_words:
+# 	print x
+# 	a = np.zeros(vocab_size)
+# 	a[x-1] = 1
+# 	new_next_words.append(a)
+# next_words = new_next_words
 
 sentences = partial_caps
-images = []
-for x in captions['annotations'][:2]:
+image_ids = []
+for i,x in enumerate(captions['annotations']):
 	number = str(('0000000000000'+str(x['image_id']))[-12:])
 	image_path = '/Users/reuben/Downloads/train2014/COCO_train2014_'+number+'.jpg'
-	image = preprocess_image(image_path)
-	image = image[0]
+	# image = preprocess_image(image_path)
+	# image = image[0]
 	# print(len(x['caption'].split()))
 	# print(x['caption'])
 	for y in range(len(x['caption'].split())-1):
-		images.append(image)
+		image_ids.append(number)
+	print(i)
 
 # print(sentences,images)
 # print(len(sentences),len(images),len(next_words))
 # print(sentences[0].shape)
 
-X1 = np.asarray(images)
+X1 = np.asarray(image_ids)
 X2 = np.asarray(sentences)
 X = [X1,X2]
 # print(y)
