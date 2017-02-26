@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     # choose categories/images
     catIds = coco.getCatIds(catNms=['person'])
-    imgIds = coco.getImgIds(catIds=catIds)[130:150]
+    imgIds = coco.getImgIds(catIds=catIds)
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
 
