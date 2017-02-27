@@ -179,19 +179,26 @@ if __name__ == '__main__':
     #sampling loop
     # print(list_of_words_to_caption(['', 'view', 'all', 'of', 'empty', 'of', 'of', 'empty', 'of', 'bathroom', 'decorated'],word_to_idx,len(captions[0])))
     new_image = X[0][0].reshape((1,len(X[0][0])))
-    gen = []
+    # gen = []
+
+        #takes a list of words and 
+    def words_to_caption(cap):
+        out = np.zeros((1,49))
+        if cap != []:
+            for i,x in enumerate(cap):
+                out[0][i] = word_to_idx[x]
+        return out
+
     # cap = "the the the"
-    # out = np.zeros((1,49))
-    # for i,x in enumerate(cap.split()):
-    #     out[0][i] = word_to_idx[x]
     # cap = out
     # cap = np.asarray([word_to_idx[x] for x in cap.split()])
-    cap = np.zeros((1,49))
-    while len(gen) < 10: 
-        result = model.predict([new_image, cap])
+    cap = []
+    # cap = np.zeros((1,49))
+    while len(cap) < 10: 
+        result = model.predict([new_image, words_to_caption(cap)])
         out = idx_to_word[sample(result[0])]
-        gen.append(out)
-        print(gen)
+        cap.append(out)
+        print(cap)
 
         
     
