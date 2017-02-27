@@ -11,9 +11,18 @@ from keras.applications.imagenet_utils import preprocess_input, decode_predictio
 import numpy as np
 from keras.preprocessing import sequence
 import pickle
+from keras_vgg19_features import predict_image
 # from utils.preprocessing import preprocess_image, repeat_imgs
+# refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
+# coco_filename='../external/coco/annotations/instances_train2014.json'
+# datasetDir = '../external/coco/'
+# datasetType = 'images/train2014/'
 
-#
+#     # Create Refexp instance.
+# refexp = Refexp(refexp_filename, coco_filename)
+
+#todo
+#write a function "decode_text" that takes lists of embedded words and returns words
 
 #todo
 # load the partial captions along with ids, and next words, from separate h5py files, along with max_caption_length
@@ -34,37 +43,14 @@ import pickle
     #
 
 
-# def list_of_words_to_caption(wordlist,word_to_idx,max_caption_len):
-#     word_to_idx[""] = 0
-#     out = np.zeros(max_caption_len)
-#     for i,x in enumerate(wordlist):
-#         out[i] = word_to_idx[x]
-#     out = out.reshape([1,max_caption_len])
-#     return out
 
-# img = data[0][0][0]
-# cap = data[0][0][1][0].reshape(1,16)
-# vocab_size = data[2]
-# y = np.zeros((1,vocab_size))
-# y[0][data[1][0]] = 1
 
-# print(y.shape)
 
-# print(cap.shape)
-
-# print(captions),"CAPTIONS"
-# image = images[0]
-# caption = captions[0]
-# next_word = next_words[0]
-
-# print(images.shape,captions.shape)
-
-# vocab_size = 7
 
 #put in preprocessing
 def get_image(id,path):
     #possibly pad id with 0s
-    return np.load(path+id+'.jpg.npy')
+    return np.load(path+id+'.npy')
 
 
 
@@ -83,22 +69,48 @@ if __name__ == '__main__':
         data = pickle.load(handle)
 
     # # ideal
-    X,y,vocab_size,idx_to_word = data
+    X, y, word_to_idx, idx_to_word = data
+    vocab_size = len(word_to_idx)
     image_ids = X[0] #shape (batch_size,224,224,3)
+    # print(image_ids,"STOP")
+    # print(len(image_ids)), "LENGTH OF IMAGE_IDS"
+    images = []
+    # print(image_ids[0]),"IMAGE ID"
+    for image_id in image_ids:
+        number = str(('_0000000000000'+str(image_id))[-12:])
 
-    # images = []
-    # # for image_id in image_ids:
-    # #     images.append(get_image(image_id,path='../external/coco/processed/COCO_train2014_'))
+        try:
+            x = get_image(number,path='../external/coco/processed/')
+        except IOError:
+            # print(str(image_id)[-6:])
+            x = predict_image(str(image_id))
+
+        images.append(x)
+            # x = image.load_img(datasetDir+datasetType+"_"+number, target_size=(224, 224))
+            # x = image.img_to_array(x)
+            # x = np.expand_dims(x, axis=0)
+            # x = preprocess_input(x)
+
+            # output = model.predict(x)
+            # images.append(x)
     # images.append(get_image('000000131074',path='../external/coco/processed/COCO_train2014_'))
-    images = [get_image('000000131074',path='../external/coco/processed/COCO_train2014_')[0]]*17
+    # images = [get_image('000000131074',path='../external/coco/processed/COCO_train2014_')[0]]*17
 
     # print(len(images),len(images[0]))
 
-    X[0] = np.asarray(images)
-    print(X[0].shape,"SHAPE")
+    X[0] = np.asarray(images).transpose((1,0,2))[0]
+    # print(X[0].shape,"SHAPE")
 
     partial_captions = X[1] # (batch_size,16)
     next_words = y # vocab_size
+    new_next_words = []
+    for x in next_words:
+      # print x
+      a = np.zeros(vocab_size)
+      a[x-1] = 1
+      new_next_words.append(a)
+    next_words = np.asarray(new_next_words)
+    y = next_words
 
     max_caption_len = partial_captions.shape[1]
 
@@ -141,29 +153,12 @@ if __name__ == '__main__':
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
+
+
     # sentences = ["START A cat with white fur END"]
     # new_image_path = ['cat.jpg']
     # images_2, partial_captions, next_words = preprocess_img_and_text(images_path, sentences)
 
-    # new_image = preprocess_image('cat.jpg')
-
-    # print "next",next_words.shape
-    # print "shape partial_captions", partial_captions.shape
-    # print "partial captions 1",partial_captions[0]
-    # print image.shape
-    # print "shape of captions",captions.shape
-
-    # "images" is a numpy float array of shape (nb_samples, nb_channels=3, width, height).
-    # "captions" is a numpy integer array of shape (nb_samples, max_caption_len)
-    # containing word index sequences representing partial captions.
-    # "next_words" is a numpy float array of shape (nb_samples, vocab_size)
-    # containing a categorical encoding (0s and 1s) of the next word in the corresponding
-    # partial caption.
-    # model.fit([np.zeros((17,224,224,3)),np.zeros((17,10))], np.zeros((17,15)), batch_size=2, nb_epoch=5)
-    # print captions.shape
-
-    #captions = np.zeros((17,10))
-    #captions[0][0] = 10
 
     #what is this for?
     # imgs_rep = repeat_imgs(images, captions)
@@ -171,10 +166,10 @@ if __name__ == '__main__':
 
     print(X[0].shape,X[1].shape,y.shape,"SHAPETYSHAPE")
 
-    model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=5)
+    # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=1)
     # model.save("modelweights")
     # del model
-    # model = load_model("modelweights")
+    model = load_model("modelweights")
 
     # print result   
     # out = sample(result[0])
@@ -183,9 +178,17 @@ if __name__ == '__main__':
     # print(word_to_idx)
     #sampling loop
     # print(list_of_words_to_caption(['', 'view', 'all', 'of', 'empty', 'of', 'of', 'empty', 'of', 'bathroom', 'decorated'],word_to_idx,len(captions[0])))
-    gen = [""]
+    new_image = X[0][0].reshape((1,len(X[0][0])))
+    gen = []
+    # cap = "the the the"
+    # out = np.zeros((1,49))
+    # for i,x in enumerate(cap.split()):
+    #     out[0][i] = word_to_idx[x]
+    # cap = out
+    # cap = np.asarray([word_to_idx[x] for x in cap.split()])
+    cap = np.zeros((1,49))
     while len(gen) < 10: 
-        result = model.predict([new_image, list_of_words_to_caption(gen,word_to_idx,len(partial_captions[0]))])
+        result = model.predict([new_image, cap])
         out = idx_to_word[sample(result[0])]
         gen.append(out)
         print(gen)

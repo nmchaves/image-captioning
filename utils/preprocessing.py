@@ -10,6 +10,9 @@ from keras.applications.imagenet_utils import preprocess_input
 
 import cPickle
 import numpy as np
+import cPickle as pickle
+
+
 
 def preprocess_image(img_path):
     img = image.load_img(img_path, target_size=(224, 224))
@@ -133,5 +136,24 @@ if __name__ == '__main__':
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
     word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs)
+
+    print(len(image_ids),len(partial_caps))
+    assert(len(image_ids)==len(partial_caps))
+
+    number_of_items = 1000
+
+    X = [0,0]
+    X[0] = np.asarray(image_ids[:number_of_items])
+    print(partial_caps.shape,"PARTIAL CAP SHAPE")
+    X[1] = np.asarray(partial_caps[:number_of_items])
+    y = np.asarray(next_words[:number_of_items])
+
+    print(X[0])
+
+    out = X, y, word_to_idx, idx_to_word
+
+    handle =  open( "../keras_vgg_19/savedoc", "r+" )
+    pickle.dump(out,handle )
+    handle.close()
 
     # partial_caps, next_words, and image_ids should be the same length
