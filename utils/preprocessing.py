@@ -1,7 +1,14 @@
+import sys
+sys.path.append('../external/coco/PythonAPI')
+sys.path.append('../google_refexp_py_lib')
+from pycocotools.coco import COCO
+
 from keras.preprocessing.text import text_to_word_sequence
 from keras.preprocessing import sequence
 from keras.preprocessing import image
 from keras.applications.imagenet_utils import preprocess_input
+
+import cPickle
 import numpy as np
 
 def preprocess_image(img_path):
@@ -10,7 +17,7 @@ def preprocess_image(img_path):
     x = np.expand_dims(x, axis=0)
     return preprocess_input(x)
 
-
+# not sure that we use this anymore... during preprocessing now just get image_id for each partial caption
 def repeat_imgs(imgs, captions):
     # TODO: don't recompute caption_seqs! Need to improve API
     caption_seqs = [text_to_word_sequence(c) for c in captions]
@@ -22,28 +29,58 @@ def repeat_imgs(imgs, captions):
         start += pc_len
     return np.asarray(imgs_rep)
 
+# this function has been edited to read in pickled dictionaries produced by preprocess_coco function
+# also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
+# also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
+def preprocess_captions(caption_seqs):
+	word_to_idx = cPickle.load(open('coco_word_to_idx','rb'))
+	idx_to_word = cPickle.load(open('coco_idx_to_word','rb'))
+	database_stats = cPickle.load(open('coco_stats','rb'))
 
-def preprocess_captions(captions):
-    caption_seqs = [text_to_word_sequence(c) for c in captions]
-    unique = unique_words(caption_seqs)
+	partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, database_stats['max_cap_len'])
 
-    word_to_idx = {}
-    idx_to_word = {}
-    for i, word in enumerate(unique):
-        # Start indices at 1 since 0 will represent padding
-        word_to_idx[word] = i+1
-        idx_to_word[i+1] = word
+	return word_to_idx, idx_to_word, partial_caps, next_words
 
-    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx)
+# this function creates dictionaries and finds max caption length for the entire coco dataset
+def preprocess_coco(include_val=True):
+	# get annotations
+	train_ann_filename = '../external/coco/annotations/captions_train2014.json'
+	coco_train = COCO(train_ann_filename)
+	trainAnnIds = coco_train.getAnnIds()
+	trainAnns = coco_train.loadAnns(trainAnnIds)
 
-    # Convert next_words into a binary matrix. Use `vocab_size`+1 columns so that we can
-    # use regular indexing to access the 1-based words.
-    vocab_size = len(unique)
-    next_words_binary = np.zeros((len(partial_caps), vocab_size+1))
-    for i,nxt in enumerate(next_words):
-        next_words_binary[i,nxt] = 1.0
+	if include_val:
+		val_ann_filename = '../external/coco/annotations/captions_val2014.json'
+		coco_val = COCO(val_ann_filename)
+		valAnnIds = coco_val.getAnnIds()
+		valAnns = coco_val.loadAnns(valAnnIds)
 
-    return unique, word_to_idx, idx_to_word, partial_caps, next_words_binary
+		anns = trainAnns + valAnns
+	else:
+		anns = trainAnns
+
+	# get captions from annotations and find longest
+	captions = [ann['caption'].encode('ascii') for ann in anns]
+	caption_seqs = [text_to_word_sequence(c) for c in captions]
+	max_cap_len = max([len(seq) for seq in caption_seqs])
+	# a pickled dictionary is overkill here
+	# but i implemented like this in case we want to get any other
+	# databse info here 
+	database_stats = {'max_cap_len': max_cap_len}
+
+	# create dictionaries for dataset
+	unique = unique_words(caption_seqs)
+	word_to_idx = {}
+	idx_to_word = {}
+	for i, word in enumerate(unique):
+	# Start indices at 1 since 0 will represent padding
+		word_to_idx[word] = i+1
+		idx_to_word[i+1] = word
+	
+	cPickle.dump(word_to_idx,open('coco_word_to_idx','wb'))
+	cPickle.dump(idx_to_word,open('coco_idx_to_word','wb'))
+	cPickle.dump(database_stats,open('coco_stats','wb'))
+	print 'MS COCO dataset processed'
 
 
 def unique_words(caption_seqs):
@@ -55,8 +92,7 @@ def unique_words(caption_seqs):
     return list(unique)
 
 
-def partial_captions_and_next_words(caption_seqs, word_to_idx):
-    max_caption_len = max([len(seq) for seq in caption_seqs])
+def partial_captions_and_next_words(caption_seqs, word_to_idx,max_cap_len):
     partial_caps = []
     next_words = []
     for seq in caption_seqs:
@@ -66,16 +102,36 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx):
 
     # Pad sequences with 0's such that they all have length 'max_caption_len-1'. We subtract 1 b/c the
     # last word of a caption will never be included in any partial caption
-    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_caption_len-1, padding='post')
+    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len-1, padding='post')
     return partial_caps, next_words
 
 
-def get_captions():
-    return 0
-
 if __name__ == '__main__':
-    captions = ['a cat with fur', 'the dog has teeth']
-    unique, word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(captions)
-    print 'Partial Captions: \n', partial_caps
-    print 'Next Words: ', next_words
-    print 'Words indices: ', idx_to_word
+	# first preprocess dataset - this only needs to be done once and then the files are saved
+    #preprocess_coco()
+
+    #choose caption set
+    coco_filename='../external/coco/annotations/instances_train2014.json'
+    ann_filename = '../external/coco/annotations/captions_train2014.json'
+    coco = COCO(coco_filename)
+    coco_caps = COCO(ann_filename)
+
+    # choose categories/images
+    catIds = coco.getCatIds(catNms=['person'])
+    imgIds = coco.getImgIds(catIds=catIds)
+    annIds = coco_caps.getAnnIds(imgIds)
+    anns = coco_caps.loadAnns(annIds)
+
+    # get caption sequences
+    image_ids = [ann['image_id'] for ann in anns]
+    captions = [ann['caption'].encode('ascii') for ann in anns]
+    caption_seqs = [text_to_word_sequence(c) for c in captions]
+
+    # get image ids for each partial caption
+    num_partials = [len(seq)-1 for seq in caption_seqs]
+    repeated_ids = [[img_id]*n for img_id,n in zip(image_ids,num_partials)]
+    image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
+
+    word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs)
+
+    # partial_caps, next_words, and image_ids should be the same length
