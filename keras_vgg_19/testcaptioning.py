@@ -52,7 +52,12 @@ def get_image(id,path):
     #possibly pad id with 0s
     return np.load(path+id+'.npy')
 
-
+def words_to_caption(cap,word_to_idx):
+    out = np.zeros((1,49))
+    if cap != []:
+        for i,x in enumerate(cap):
+            out[0][i] = word_to_idx[x]
+    return out
 
 def sample(preds, temperature=1.0):
     # helper function to sample an index from a probability array
@@ -72,8 +77,10 @@ if __name__ == '__main__':
     X, y, word_to_idx, idx_to_word = data
     vocab_size = len(word_to_idx)
     image_ids = X[0] #shape (batch_size,224,224,3)
-    # print(image_ids,"STOP")
-    # print(len(image_ids)), "LENGTH OF IMAGE_IDS"
+
+    print([idx_to_word[x] if x!=0 else "null" for x in X[1][0]])
+    print(idx_to_word[y[0]])
+
     images = []
     # print(image_ids[0]),"IMAGE ID"
     for image_id in image_ids:
@@ -98,9 +105,9 @@ if __name__ == '__main__':
 
     # print(len(images),len(images[0]))
 
-    X[0] = np.asarray(images).transpose((1,0,2))[0]
     # print(X[0].shape,"SHAPE")
 
+    X[0] = np.asarray(images).transpose((1,0,2))[0]
     partial_captions = X[1] # (batch_size,16)
     next_words = y # vocab_size
     new_next_words = []
@@ -155,50 +162,45 @@ if __name__ == '__main__':
 
 
 
-    # sentences = ["START A cat with white fur END"]
-    # new_image_path = ['cat.jpg']
-    # images_2, partial_captions, next_words = preprocess_img_and_text(images_path, sentences)
-
-
-    #what is this for?
-    # imgs_rep = repeat_imgs(images, captions)
-    # model.fit([imgs_rep, partial_captions], next_words, batch_size=10, nb_epoch=5)
-
     print(X[0].shape,X[1].shape,y.shape,"SHAPETYSHAPE")
 
-    # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=1)
+    # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=60)
     # model.save("modelweights")
-    # del model
     model = load_model("modelweights")
 
-    # print result   
-    # out = sample(result[0])
+    #sanity checking procedure:
+    # encode a caption, predict one, decode
+    #decode: see above
+    #to encode: words_to_caption
+    #to decode...
 
-    # init = np.zeros(len(captions[0])) 
-    # print(word_to_idx)
-    #sampling loop
-    # print(list_of_words_to_caption(['', 'view', 'all', 'of', 'empty', 'of', 'of', 'empty', 'of', 'bathroom', 'decorated'],word_to_idx,len(captions[0])))
     new_image = X[0][0].reshape((1,len(X[0][0])))
-    # gen = []
-
-        #takes a list of words and 
-    def words_to_caption(cap):
-        out = np.zeros((1,49))
-        if cap != []:
-            for i,x in enumerate(cap):
-                out[0][i] = word_to_idx[x]
-        return out
-
-    # cap = "the the the"
-    # cap = out
-    # cap = np.asarray([word_to_idx[x] for x in cap.split()])
     cap = []
+
+    # tests
+    # print(image_ids,"STOP")
+    # print("new image id:",X[0][0])
+    # print(X[1][0])
+    # for x in X[1][0]:
+    #     print(x)
+
+    # print('break')
+    # print("new image id:",X[0][50])
+    # print([idx_to_word[x] if x!=0 else "null" for x in X[1][50]])
+    # print(len(image_ids)), "LENGTH OF IMAGE_IDS"
+
+
     # cap = np.zeros((1,49))
+    #sampling loop
     while len(cap) < 10: 
-        result = model.predict([new_image, words_to_caption(cap)])
-        out = idx_to_word[sample(result[0])]
+        result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
+        m = max(result[0])
+        # print(result)
+        out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
+        # out = idx_to_word[sample(result[0])]
         cap.append(out)
         print(cap)
+
 
         
     
