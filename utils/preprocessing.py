@@ -4,15 +4,13 @@ sys.path.append('../google_refexp_py_lib')
 from pycocotools.coco import COCO
 
 from keras.preprocessing.text import text_to_word_sequence
-from keras.preprocessing import sequence
-from keras.preprocessing import image
+from keras.preprocessing import sequence, image
 from keras.applications.imagenet_utils import preprocess_input
 
-import cPickle
 import numpy as np
 import cPickle as pickle
 
-
+STOP_TOKEN_IDX = 0
 
 def preprocess_image(img_path):
     img = image.load_img(img_path, target_size=(224, 224))
@@ -20,29 +18,19 @@ def preprocess_image(img_path):
     x = np.expand_dims(x, axis=0)
     return preprocess_input(x)
 
-# not sure that we use this anymore... during preprocessing now just get image_id for each partial caption
-def repeat_imgs(imgs, captions):
-    # TODO: don't recompute caption_seqs! Need to improve API
-    caption_seqs = [text_to_word_sequence(c) for c in captions]
-    partial_cap_lengths = [len(seq)-1 for seq in caption_seqs]
-    imgs_rep = np.zeros((sum(partial_cap_lengths), 224, 224, 3))
-    start = 0
-    for i, pc_len in enumerate(partial_cap_lengths):
-        imgs_rep[start:start+pc_len, :] = imgs[i]
-        start += pc_len
-    return np.asarray(imgs_rep)
 
 # this function has been edited to read in pickled dictionaries produced by preprocess_coco function
 # also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
 # also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
 def preprocess_captions(caption_seqs):
-	word_to_idx = cPickle.load(open('coco_word_to_idx','rb'))
-	idx_to_word = cPickle.load(open('coco_idx_to_word','rb'))
-	database_stats = cPickle.load(open('coco_stats','rb'))
+	word_to_idx = pickle.load(open('coco_word_to_idx','rb'))
+	idx_to_word = pickle.load(open('coco_idx_to_word','rb'))
+	database_stats = pickle.load(open('coco_stats','rb'))
 
 	partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, database_stats['max_cap_len'])
 
 	return word_to_idx, idx_to_word, partial_caps, next_words
+
 
 # this function creates dictionaries and finds max caption length for the entire coco dataset
 def preprocess_coco(include_val=True):
@@ -80,9 +68,9 @@ def preprocess_coco(include_val=True):
 		word_to_idx[word] = i+1
 		idx_to_word[i+1] = word
 	
-	cPickle.dump(word_to_idx,open('coco_word_to_idx','wb'))
-	cPickle.dump(idx_to_word,open('coco_idx_to_word','wb'))
-	cPickle.dump(database_stats,open('coco_stats','wb'))
+	pickle.dump(word_to_idx,open('coco_word_to_idx','wb'))
+	pickle.dump(idx_to_word,open('coco_idx_to_word','wb'))
+	pickle.dump(database_stats,open('coco_stats','wb'))
 	print 'MS COCO dataset processed'
 
 
@@ -95,22 +83,31 @@ def unique_words(caption_seqs):
     return list(unique)
 
 
-def partial_captions_and_next_words(caption_seqs, word_to_idx,max_cap_len):
+def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     partial_caps = []
     next_words = []
     for seq in caption_seqs:
         for i, word in enumerate(seq[:-1]):
             partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
             next_words.append(word_to_idx[seq[i+1]])
+        # Append the full sequence and use the stop token as the next word
+        partial_caps.append(seq)
+        next_words.append(STOP_TOKEN_IDX)
 
-    # Pad sequences with 0's such that they all have length 'max_caption_len-1'. We subtract 1 b/c the
-    # last word of a caption will never be included in any partial caption
-    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len-1, padding='post')
+    for seq in caption_seqs:
+        for i, word in enumerate(seq[:-1]):
+            partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
+            next_words.append(word_to_idx[seq[i+1]])
+
+    # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
+    # last word of a caption will always be included in the partial caption so that we can
+    # predict the stop token
+    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len, padding='post')
     return partial_caps, next_words
 
 
 if __name__ == '__main__':
-	# first preprocess dataset - this only needs to be done once and then the files are saved
+    # first preprocess dataset - this only needs to be done once and then the files are saved
     #preprocess_coco()
 
     #choose caption set
@@ -131,20 +128,20 @@ if __name__ == '__main__':
     caption_seqs = [text_to_word_sequence(c) for c in captions]
 
     # get image ids for each partial caption
-    num_partials = [len(seq)-1 for seq in caption_seqs]
+    num_partials = [len(seq) for seq in caption_seqs]
     repeated_ids = [[img_id]*n for img_id,n in zip(image_ids,num_partials)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
     word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs)
 
-    print(len(image_ids),len(partial_caps))
+    print(len(image_ids), len(partial_caps))
     assert(len(image_ids)==len(partial_caps))
 
     number_of_items = 1000
 
     X = [0,0]
     X[0] = np.asarray(image_ids[:number_of_items])
-    print(partial_caps.shape,"PARTIAL CAP SHAPE")
+    print(partial_caps.shape, "PARTIAL CAP SHAPE")
     X[1] = np.asarray(partial_caps[:number_of_items])
     y = np.asarray(next_words[:number_of_items])
 
@@ -152,8 +149,6 @@ if __name__ == '__main__':
 
     out = X, y, word_to_idx, idx_to_word
 
-    handle =  open( "../keras_vgg_19/savedoc", "r+" )
-    pickle.dump(out,handle )
+    handle = open( "../keras_vgg_19/savedoc", "r+" )
+    pickle.dump(out, handle)
     handle.close()
-
-    # partial_caps, next_words, and image_ids should be the same length
