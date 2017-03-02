@@ -94,11 +94,6 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
         partial_caps.append(seq)
         next_words.append(STOP_TOKEN_IDX)
 
-    for seq in caption_seqs:
-        for i, word in enumerate(seq[:-1]):
-            partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
-            next_words.append(word_to_idx[seq[i+1]])
-
     # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
     # last word of a caption will always be included in the partial caption so that we can
     # predict the stop token
