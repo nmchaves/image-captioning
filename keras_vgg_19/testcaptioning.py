@@ -11,9 +11,8 @@ from keras.applications.imagenet_utils import preprocess_input, decode_predictio
 import numpy as np
 # from keras.preprocessing import sequence
 import pickle
-from keras_vgg19_features import predict_image
-# from utils.general import *
-# from utils 
+
+from cnn_preprocessing import predict_image
 # from utils.preprocessing import preprocess_image, repeat_imgs
 # refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
 # coco_filename='../external/coco/annotations/instances_train2014.json'
