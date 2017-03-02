@@ -91,7 +91,7 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
             partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
             next_words.append(word_to_idx[seq[i+1]])
         # Append the full sequence and use the stop token as the next word
-        partial_caps.append(seq)
+        partial_caps.append([word_to_idx[w] for w in seq])
         next_words.append(STOP_TOKEN_IDX)
 
     # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
