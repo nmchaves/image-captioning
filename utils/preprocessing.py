@@ -140,15 +140,15 @@ if __name__ == '__main__':
     print(len(image_ids),len(partial_caps))
     assert(len(image_ids)==len(partial_caps))
 
-    number_of_items = 1000
+    number_of_items = 50
 
     X = [0,0]
     X[0] = np.asarray(image_ids[:number_of_items])
     print(partial_caps.shape,"PARTIAL CAP SHAPE")
     X[1] = np.asarray(partial_caps[:number_of_items])
+    print([idx_to_word[x] for x in next_words[:number_of_items]])
     y = np.asarray(next_words[:number_of_items])
-
-    print(X[0])
+    # print(X[0])
 
     out = X, y, word_to_idx, idx_to_word
 
