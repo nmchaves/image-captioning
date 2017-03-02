@@ -29,8 +29,10 @@ def get_image(id,path):
     #possibly pad id with 0s
     return np.load(path+id+'.npy')
 
+
+#make caption length dynamic
 def words_to_caption(cap,word_to_idx):
-    out = np.zeros((1,49))
+    out = np.zeros((1,50))
     if cap != []:
         for i,x in enumerate(cap):
             out[0][i] = word_to_idx[x]
@@ -55,11 +57,14 @@ if __name__ == '__main__':
     X, y, word_to_idx, idx_to_word = data
     vocab_size = len(word_to_idx)
     image_ids = X[0] #shape (batch_size,224,224,3)
-    
-    print("SANITY CHECK",idx_to_word[word_to_idx['the']],word_to_idx[idx_to_word[1]])
 
-    print([idx_to_word[x] if x!=0 else "null" for x in X[1][0]])
-    print(idx_to_word[y[0]])
+    # print([idx_to_word[n] if n!=0 else "null" for n in y],"NEXT_WORDS")
+
+    
+    # print("SANITY CHECK",idx_to_word[word_to_idx['the']],word_to_idx[idx_to_word[1]])
+
+    # print([idx_to_word[x] if x!=0 else "null" for x in X[1][0]])
+    # print(idx_to_word[y[0]])
 
     images = []
     for image_id in image_ids:
@@ -80,7 +85,7 @@ if __name__ == '__main__':
     for x in next_words:
       # print x
       a = np.zeros(vocab_size)
-      a[x-1] = 1
+      a[x] = 1
       new_next_words.append(a)
     next_words = np.asarray(new_next_words)
     y = next_words
@@ -110,14 +115,14 @@ if __name__ == '__main__':
 
 
 
-    print(X[0].shape,X[1].shape,y.shape,"SHAPES")
+    # print(X[0].shape,X[1].shape,y.shape,"SHAPES")
 
     #view X[:5]
     # print(X[1])
     # for y in X[1]:
-    print(X[1].shape)
+    # print(X[1].shape)
     for i,n in enumerate(X[1]):
-        print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
+    #     # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
         out = np.argmax(y[i])
         print(idx_to_word[out],"NEXT WORD")
     # print(X[1].shape)
