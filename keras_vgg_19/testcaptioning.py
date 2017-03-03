@@ -49,18 +49,18 @@ def sample(preds, temperature=1.0):
 
 if __name__ == '__main__':
 
-    default_num_images = 50
+    default_num_imgs = 50
     data_path = 'savedoc'
 
     parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
     parser.add_argument("-p", "--preprocess", default=False,
                         type=bool, help='whether to use preprocessing')
-    parser.add_argument("-n", "--num_images", default=default_num_images,
+    parser.add_argument("-n", "--num_imgs", default=default_num_imgs,
                         type=int, help='number of images to preprocess')
     args = parser.parse_args()
-    num_images = args.num_images
+    num_imgs = args.num_imgs
     if args.preprocess:
-        preprocess_captioned_images(number_of_items=num_images, category_name='person', result_path=data_path)
+        preprocess_captioned_images(num_imgs_to_sample=num_imgs, category_name='person', out_file=data_path)
 
     with open(data_path, 'rb') as handle:
         data = pickle.load(handle)
