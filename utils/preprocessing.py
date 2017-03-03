@@ -102,24 +102,22 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     return partial_caps, next_words
 
 
-if __name__ == '__main__':
-    # first preprocess dataset - this only needs to be done once and then the files are saved
-    #preprocess_coco()
+def preprocess_captioned_images(num_imgs_to_sample, category_name='person', out_file='../keras_vgg_19/savedoc'):
 
-    #choose caption set
     coco_filename='../external/coco/annotations/instances_train2014.json'
     ann_filename = '../external/coco/annotations/captions_train2014.json'
     coco = COCO(coco_filename)
     coco_caps = COCO(ann_filename)
 
     # choose categories/images
-    catIds = coco.getCatIds(catNms=['person'])
+    catIds = coco.getCatIds(catNms=[category_name])
     imgIds = coco.getImgIds(catIds=catIds)
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
 
     # get caption sequences
     image_ids = [ann['image_id'] for ann in anns]
+    total_num_images = len(image_ids)
     captions = [ann['caption'].encode('ascii') for ann in anns]
     caption_seqs = [text_to_word_sequence(c) for c in captions]
 
@@ -133,20 +131,32 @@ if __name__ == '__main__':
     print(len(image_ids), len(partial_caps))
     assert(len(image_ids)==len(partial_caps))
 
-
-
-    number_of_items = 50
+    # Determine how many (partial caption, image) examples to take to obtain
+    # `num_images` total distinct images (including all partial captions)
+    if num_imgs_to_sample < total_num_images:
+        number_of_items = 0
+        for i, count in enumerate(num_partials):
+            if i >= num_imgs_to_sample:
+                break
+            number_of_items += count
+    else:
+        print total_num_images, ' were requested, but only ', num_imgs_to_sample, \
+            ' are available in this category. Processing all images in the category...'
+        number_of_items = len(partial_caps)
 
     X = [0,0]
     X[0] = np.asarray(image_ids[:number_of_items])
-    # print(partial_caps.shape, "PARTIAL CAP SHAPE")
     X[1] = np.asarray(partial_caps[:number_of_items])
-    # print([idx_to_word[x] for x in next_words[:number_of_items]])
     y = np.asarray(next_words[:number_of_items])
-    # print(X[0])
-    # print([idx_to_word[next_word] if next_word!=0 else 'null' for next_word in next_words],"NEXT WORDS")
     out = X, y, word_to_idx, idx_to_word
 
-    handle = open( "../keras_vgg_19/savedoc", "r+" )
-    pickle.dump(out, handle)
-    handle.close()
+    with open(out_file, 'w') as handle:
+        pickle.dump(out, handle)
+
+
+if __name__ == '__main__':
+    # first preprocess dataset - this only needs to be done once and then the files are saved
+    #preprocess_coco()
+
+    preprocess_captioned_images(num_imgs_to_sample=2, category_name='person', out_file='test')
+

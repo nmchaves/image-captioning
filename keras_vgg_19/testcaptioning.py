@@ -7,11 +7,10 @@ from keras.layers import Dense, Activation, \
 from keras.applications import VGG19
 # from keras.preprocessing.text import text_to_word_sequence
 # from keras.preprocessing import image
-from keras.applications.imagenet_utils import preprocess_input, decode_predictions
 import numpy as np
-# from keras.preprocessing import sequence
 import pickle
-
+from utils.preprocessing import preprocess_captioned_images
+import argparse
 from cnn_preprocessing import predict_image
 # from utils.preprocessing import preprocess_image, repeat_imgs
 # refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
@@ -50,7 +49,20 @@ def sample(preds, temperature=1.0):
 
 if __name__ == '__main__':
 
-    with open('savedoc', 'rb') as handle:
+    default_num_imgs = 50
+    data_path = 'savedoc'
+
+    parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
+    parser.add_argument("-p", "--preprocess", default=False,
+                        type=bool, help='whether to use preprocessing')
+    parser.add_argument("-n", "--num_imgs", default=default_num_imgs,
+                        type=int, help='number of images to preprocess')
+    args = parser.parse_args()
+    num_imgs = args.num_imgs
+    if args.preprocess:
+        preprocess_captioned_images(num_imgs_to_sample=num_imgs, category_name='person', out_file=data_path)
+
+    with open(data_path, 'rb') as handle:
         data = pickle.load(handle)
 
     X, y, word_to_idx, idx_to_word = data
