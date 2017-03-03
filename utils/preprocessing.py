@@ -98,7 +98,7 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
     # last word of a caption will always be included in the partial caption so that we can
     # predict the stop token
-    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len, padding='post')
+    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len, padding='post',value=STOP_TOKEN_IDX)
     return partial_caps, next_words
 
 
