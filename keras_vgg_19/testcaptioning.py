@@ -105,7 +105,7 @@ if __name__ == '__main__':
     image_model.add(RepeatVector(max_caption_len))
 
     model = Sequential()
-    model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1))
+    model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
     model.add(GRU(256, return_sequences=False))
 
     model.add(Dense(vocab_size))
@@ -115,28 +115,22 @@ if __name__ == '__main__':
 
 
 
-    # print(X[0].shape,X[1].shape,y.shape,"SHAPES")
 
-    #view X[:5]
-    # print(X[1])
-    # for y in X[1]:
-    # print(X[1].shape)
-    for i,n in enumerate(X[1]):
-        # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
-        out = np.argmax(y[i])
-        if out!=0:
-            print(idx_to_word[out],"NEXT WORD")
+    # for i,n in enumerate(X[1]):
+    #     # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
+    #     out = np.argmax(y[i])
+    #     if out!=0:
+    #         print(idx_to_word[out],"NEXT WORD")
     # print(X[1].shape)
     # for m in y:
 
     # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=10)
     # model.save("modelweights")
-    model = load_model("modelweights")
+    # model = load_model("modelweights")
 
-
+    print("LAYER",model.get_layer(name='foo').output_shape)
 
     new_image = X[0][0].reshape((1,len(X[0][1])))
-    # new_image = np.zeros(shape=new_image.shape)
 
 
     cap = "vegetables market".split()
@@ -148,10 +142,18 @@ if __name__ == '__main__':
     result = idx_to_word[np.argmax(result[0])]
     print(result)
 
-    cap = "piles crowded".split()
+
+
+    # cap = "piles crowded".split()
+    new_image = X[0][0].reshape((1,len(X[0][48])))
+    # new_image = np.zeros(shape=new_image.shape)
+    # cap = "vegetables market".split()
+    # cap = "carrots and potatoes at a crowded outdoor market".split()
+    inp = np.zeros((1,50))
+
     # cap = 
-    print(words_to_caption(cap,word_to_idx))
-    result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
+    # print(words_to_caption(cap,word_to_idx))
+    result = model.predict([new_image, inp])
     print(result[0][np.argmax(result[0])],"PROB DIST")
     print(result.shape)
     result = idx_to_word[np.argmax(result[0])]
