@@ -122,23 +122,24 @@ if __name__ == '__main__':
     # for y in X[1]:
     # print(X[1].shape)
     for i,n in enumerate(X[1]):
-    #     # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
+        # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
         out = np.argmax(y[i])
-        print(idx_to_word[out],"NEXT WORD")
+        if out!=0:
+            print(idx_to_word[out],"NEXT WORD")
     # print(X[1].shape)
     # for m in y:
 
-    model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=10)
-    model.save("modelweights")
-    # model = load_model("modelweights")
+    # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=10)
+    # model.save("modelweights")
+    model = load_model("modelweights")
 
 
 
     new_image = X[0][0].reshape((1,len(X[0][1])))
-    new_image = np.zeros(shape=new_image.shape)
+    # new_image = np.zeros(shape=new_image.shape)
 
 
-    cap = "everything the".split()
+    cap = "vegetables market".split()
     # cap = 
     print(words_to_caption(cap,word_to_idx))
     result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
@@ -147,7 +148,17 @@ if __name__ == '__main__':
     result = idx_to_word[np.argmax(result[0])]
     print(result)
 
-    # while len(cap) < 10: 
+    cap = "vegetables market".split()
+    # cap = 
+    print(words_to_caption(cap,word_to_idx))
+    result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
+    print(result[0][np.argmax(result[0])],"PROB DIST")
+    print(result.shape)
+    result = idx_to_word[np.argmax(result[0])]
+    print(result)
+
+    # cap = []
+    # while len(cap) < 50: 
     #     result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
     #     m = max(result[0])
     #     # print(result)
