@@ -148,7 +148,7 @@ if __name__ == '__main__':
     result = idx_to_word[np.argmax(result[0])]
     print(result)
 
-    cap = "vegetables market".split()
+    cap = "piles crowded".split()
     # cap = 
     print(words_to_caption(cap,word_to_idx))
     result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
