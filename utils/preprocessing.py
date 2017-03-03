@@ -11,6 +11,7 @@ import numpy as np
 import cPickle as pickle
 
 STOP_TOKEN = '$STOP$'
+STOP_TOKEN_IDX = 0
 
 def preprocess_image(img_path):
     img = image.load_img(img_path, target_size=(224, 224))
@@ -61,8 +62,8 @@ def preprocess_coco(include_val=True):
 
 	# create dictionaries for dataset
 	unique = unique_words(caption_seqs)
-	word_to_idx = {STOP_TOKEN:0}
-	idx_to_word = {0:STOP_TOKEN}
+	word_to_idx = {STOP_TOKEN:STOP_TOKEN_IDX}
+	idx_to_word = {STOP_TOKEN_IDX:STOP_TOKEN}
 	for i, word in enumerate(unique):
 	# Start indices at 1 since 0 will represent padding
 		word_to_idx[word] = i+1
