@@ -99,7 +99,7 @@ if __name__ == '__main__':
     language_model = Sequential()
     language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
     language_model.add(GRU(output_dim=128, return_sequences=True))
-    language_model.add(TimeDistributed(Dense(128)))
+    language_model.add(TimeDistributed(Dense(128),name="lang"))
 
     image_model.add(RepeatVector(max_caption_len))
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     model.add(GRU(256, return_sequences=False))
 
     model.add(Dense(vocab_size))
-    model.add(Activation('softmax'))
+    model.add(Activation('softmax',name='soft'))
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
@@ -125,50 +125,58 @@ if __name__ == '__main__':
 
     # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=10)
     # model.save("modelweights")
-    # model = load_model("modelweights")
+    model = load_model("modelweights")
+    # intermediate_layer_model = Model(input=model.input,
+    #                              output=model.get_layer("soft").output)
+    # # new = "LAYER",model.get_layer(name='lang').output
+    # intermediate_output = intermediate_layer_model.predict([new_image,np.zeros((1,50))])
 
-    print("LAYER",model.get_layer(name='foo').output_shape)
+    # intermediate_output2 = intermediate_layer_model.predict([new_image,np.ones((1,50))])
+
+    # print(intermediate_output)
+    # print(intermediate_output2)
+    # print(np.array_equal(intermediate_output,intermediate_output2))
+
+
+
+
+    # cap = "vegetables market".split()
+    # # cap = 
+    # # print(words_to_caption(cap,word_to_idx, max_caption_len))
+    # result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
+    # print(result[0][np.argmax(result[0])],"PROB DIST")
+    # result = idx_to_word[np.argmax(result[0])]
+    # print(result)
+
+
+
+    # # cap = "piles crowded".split()
+    # new_image = X[0][0].reshape((1,len(X[0][1])))
+    # # new_image = np.zeros(shape=new_image.shape)
+    # # cap = "vegetables market".split()
+    # cap = "carrots and potatoes at a crowded outdoor market carrots and potatoes at a crowded outdoor market carrots and potatoes at a crowded outdoor market".split()
+    # # inp = np.zeros((1,50))
+
+    # # # cap = 
+
+    # # # print(words_to_caption(cap,word_to_idx))
+    # # result = model.predict([new_image, inp])
+    # result2 = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
+    # # print("EQUAL?",np.array_equal(result,result2))
+    # print(result[0][np.argmax(result[0])],"PROB DIST")
+    # result = idx_to_word[np.argmax(result[0])]
+    # # print(result)
 
     new_image = X[0][0].reshape((1,len(X[0][1])))
-
-
-    cap = "vegetables market".split()
-    # cap = 
-    print(words_to_caption(cap,word_to_idx, max_caption_len))
-    result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
-    print(result[0][np.argmax(result[0])],"PROB DIST")
-    print(result.shape)
-    result = idx_to_word[np.argmax(result[0])]
-    print(result)
-
-
-
-    # cap = "piles crowded".split()
-    new_image = X[0][0].reshape((1,len(X[0][48])))
-    # new_image = np.zeros(shape=new_image.shape)
-    # cap = "vegetables market".split()
-    # cap = "carrots and potatoes at a crowded outdoor market".split()
-    inp = np.zeros((1,50))
-
-    # cap = 
-
-    # print(words_to_caption(cap,word_to_idx))
-    result = model.predict([new_image, inp])
-    result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
-    print(result[0][np.argmax(result[0])],"PROB DIST")
-    print(result.shape)
-    result = idx_to_word[np.argmax(result[0])]
-    print(result)
-
-    # cap = []
-    # while len(cap) < max_caption_len:
-    #     result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
-    #     m = max(result[0])
-    #     # print(result)
-    #     out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-    #     # out = idx_to_word[sample(result[0])]
-    #     cap.append(out)
-    #     print(cap)
+    cap = []
+    while len(cap) < max_caption_len:
+        result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+        m = max(result[0])
+        # print(result)
+        out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
+        # out = idx_to_word[sample(result[0])]
+        cap.append(out)
+        print(cap)
 
 
         
