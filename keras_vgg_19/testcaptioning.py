@@ -30,9 +30,8 @@ def get_image(id,path):
     return np.load(path+id+'.npy')
 
 
-#make caption length dynamic
-def words_to_caption(cap,word_to_idx):
-    out = np.zeros((1,50))
+def words_to_caption(cap, word_to_idx, max_caption_len):
+    out = np.zeros((1,max_caption_len))
     if cap != []:
         for i,x in enumerate(cap):
             out[0][i] = word_to_idx[x]
@@ -80,6 +79,8 @@ if __name__ == '__main__':
 
     X[0] = np.asarray(images).transpose((1,0,2))[0]
     partial_captions = X[1] # (batch_size,16)
+    max_caption_len = partial_captions.shape[1]
+
     next_words = y # vocab_size
     new_next_words = []
     for x in next_words:
@@ -89,8 +90,6 @@ if __name__ == '__main__':
       new_next_words.append(a)
     next_words = np.asarray(new_next_words)
     y = next_words
-
-    max_caption_len = partial_captions.shape[1]
 
     #MODEL
     image_model = Sequential()
@@ -135,8 +134,8 @@ if __name__ == '__main__':
 
     cap = "vegetables market".split()
     # cap = 
-    print(words_to_caption(cap,word_to_idx))
-    result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
+    print(words_to_caption(cap,word_to_idx, max_caption_len))
+    result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
     print(result[0][np.argmax(result[0])],"PROB DIST")
     print(result.shape)
     result = idx_to_word[np.argmax(result[0])]
@@ -152,15 +151,17 @@ if __name__ == '__main__':
     inp = np.zeros((1,50))
 
     # cap = 
+
     # print(words_to_caption(cap,word_to_idx))
     result = model.predict([new_image, inp])
+    result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
     print(result[0][np.argmax(result[0])],"PROB DIST")
     print(result.shape)
     result = idx_to_word[np.argmax(result[0])]
     print(result)
 
     # cap = []
-    # while len(cap) < 50: 
+    # while len(cap) < max_caption_len:
     #     result = model.predict([new_image, words_to_caption(cap,word_to_idx)])
     #     m = max(result[0])
     #     # print(result)
