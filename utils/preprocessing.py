@@ -117,6 +117,7 @@ def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='per
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
     ann_filename = coco_dir+'/annotations/captions_train2014.json'
+
     coco = COCO(coco_filename)
     coco_caps = COCO(ann_filename)
 
@@ -171,4 +172,5 @@ if __name__ == '__main__':
 
     preprocess_captioned_images(num_imgs_to_sample=2, coco_dir='../external/coco',
                                 category_name='person', out_file='test')
+
 
