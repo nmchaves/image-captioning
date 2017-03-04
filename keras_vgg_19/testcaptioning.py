@@ -9,18 +9,9 @@ from keras.applications import VGG19
 # from keras.preprocessing import image
 import numpy as np
 import pickle
-from utils.preprocessing import preprocess_captioned_images
+from utils.preprocessing import preprocess_captioned_images, STOP_TOKEN
 import argparse
 from cnn_preprocessing import predict_image
-# from utils.preprocessing import preprocess_image, repeat_imgs
-# refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
-# coco_filename='../external/coco/annotations/instances_train2014.json'
-# datasetDir = '../external/coco/'
-# datasetType = 'images/train2014/'
-
-#     # Create Refexp instance.
-# refexp = Refexp(refexp_filename, coco_filename)
-
 
 
 #put in preprocessing
@@ -30,12 +21,11 @@ def get_image(id,path):
 
 
 def words_to_caption(cap, word_to_idx, max_caption_len):
-    out = np.zeros((1,max_caption_len))
+    out = np.zeros(max_caption_len)
     if cap != []:
         for i,x in enumerate(cap):
-            out[0][i] = word_to_idx[x]
+            out[i] = word_to_idx[x]
     return out
-
 
 
 def sample(preds, temperature=1.0):
@@ -50,17 +40,26 @@ def sample(preds, temperature=1.0):
 if __name__ == '__main__':
 
     default_num_imgs = 50
-    data_path = 'savedoc'
+    data_path = 'preprocess_data'
+    coco_dir = '../external/coco'
 
+    # Parse program arguments
     parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
     parser.add_argument("-p", "--preprocess", default=False,
-                        type=bool, help='whether to use preprocessing')
+                        type=bool, help='If true, apply preprocessing')
     parser.add_argument("-n", "--num_imgs", default=default_num_imgs,
-                        type=int, help='number of images to preprocess')
+                        type=int, help='Number of images to preprocess')
+    parser.add_argument("-t", "--train", default=False,
+                        type=bool, help='If true, train the model. Else, load the saved model')
+
     args = parser.parse_args()
+    train = args.train
     num_imgs = args.num_imgs
+
+    # Preprocess the data if necessary
     if args.preprocess:
-        preprocess_captioned_images(num_imgs_to_sample=num_imgs, category_name='person', out_file=data_path)
+        preprocess_captioned_images(num_imgs_to_sample=num_imgs, coco_dir=coco_dir,
+                                    category_name='person', out_file=data_path)
 
     with open(data_path, 'rb') as handle:
         data = pickle.load(handle)
@@ -70,10 +69,6 @@ if __name__ == '__main__':
     image_ids = X[0] #shape (batch_size,224,224,3)
 
     # print([idx_to_word[n] if n!=0 else "null" for n in y],"NEXT_WORDS")
-
-    
-    # print("SANITY CHECK",idx_to_word[word_to_idx['the']],word_to_idx[idx_to_word[1]])
-
     # print([idx_to_word[x] if x!=0 else "null" for x in X[1][0]])
     # print(idx_to_word[y[0]])
 
@@ -82,7 +77,7 @@ if __name__ == '__main__':
         number = str(('_0000000000000'+str(image_id))[-12:])
 
         try:
-            x = get_image(number,path='../external/coco/processed/')
+            x = get_image(number,path=coco_dir+'/processed/')
         except IOError:
             x = predict_image(str(image_id))
 
@@ -90,23 +85,21 @@ if __name__ == '__main__':
 
 
     X[0] = np.asarray(images).transpose((1,0,2))[0]
-    partial_captions = X[1] # (batch_size,16)
+    partial_captions = X[1]
     max_caption_len = partial_captions.shape[1]
 
     next_words = y # vocab_size
     new_next_words = []
     for x in next_words:
-      # print x
-      a = np.zeros(vocab_size)
-      a[x] = 1
-      new_next_words.append(a)
+        a = np.zeros(vocab_size)
+        a[x] = 1
+        new_next_words.append(a)
     next_words = np.asarray(new_next_words)
     y = next_words
 
-    #MODEL
+    # Model
     image_model = Sequential()
     image_model.add(Dense(128, input_dim=25088))
-
 
     language_model = Sequential()
     language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
@@ -124,9 +117,6 @@ if __name__ == '__main__':
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-
-
-
     # for i,n in enumerate(X[1]):
     #     # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
     #     out = np.argmax(y[i])
@@ -135,9 +125,12 @@ if __name__ == '__main__':
     # print(X[1].shape)
     # for m in y:
 
-    # model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=10)
-    # model.save("modelweights")
-    model = load_model("modelweights")
+    if args.train:
+        model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=5)
+        model.save("modelweights")
+    else:
+        model = load_model("modelweights")
+
     # intermediate_layer_model = Model(input=model.input,
     #                              output=model.get_layer("soft").output)
     # # new = "LAYER",model.get_layer(name='lang').output
@@ -189,7 +182,5 @@ if __name__ == '__main__':
         # out = idx_to_word[sample(result[0])]
         cap.append(out)
         print(cap)
-
-
-        
-    
+        if out == STOP_TOKEN:
+            break
