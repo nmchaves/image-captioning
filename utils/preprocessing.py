@@ -13,66 +13,12 @@ import cPickle as pickle
 STOP_TOKEN = '$STOP$'
 STOP_TOKEN_IDX = 0
 
+
 def preprocess_image(img_path):
     img = image.load_img(img_path, target_size=(224, 224))
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
     return preprocess_input(x)
-
-
-# this function has been edited to read in pickled dictionaries produced by preprocess_coco function
-# also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
-# also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
-def preprocess_captions(caption_seqs):
-	word_to_idx = pickle.load(open('coco_word_to_idx','rb'))
-	idx_to_word = pickle.load(open('coco_idx_to_word','rb'))
-	database_stats = pickle.load(open('coco_stats','rb'))
-
-	partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, database_stats['max_cap_len'])
-
-	return word_to_idx, idx_to_word, partial_caps, next_words
-
-
-# this function creates dictionaries and finds max caption length for the entire coco dataset
-def preprocess_coco(include_val=True):
-	# get annotations
-	train_ann_filename = '../external/coco/annotations/captions_train2014.json'
-	coco_train = COCO(train_ann_filename)
-	trainAnnIds = coco_train.getAnnIds()
-	trainAnns = coco_train.loadAnns(trainAnnIds)
-
-	if include_val:
-		val_ann_filename = '../external/coco/annotations/captions_val2014.json'
-		coco_val = COCO(val_ann_filename)
-		valAnnIds = coco_val.getAnnIds()
-		valAnns = coco_val.loadAnns(valAnnIds)
-
-		anns = trainAnns + valAnns
-	else:
-		anns = trainAnns
-
-	# get captions from annotations and find longest
-	captions = [ann['caption'].encode('ascii') for ann in anns]
-	caption_seqs = [text_to_word_sequence(c) for c in captions]
-	max_cap_len = max([len(seq) for seq in caption_seqs])
-	# a pickled dictionary is overkill here
-	# but i implemented like this in case we want to get any other
-	# databse info here 
-	database_stats = {'max_cap_len': max_cap_len}
-
-	# create dictionaries for dataset
-	unique = unique_words(caption_seqs)
-	word_to_idx = {STOP_TOKEN:STOP_TOKEN_IDX}
-	idx_to_word = {STOP_TOKEN_IDX:STOP_TOKEN}
-	for i, word in enumerate(unique):
-	# Start indices at 1 since 0 will represent padding
-		word_to_idx[word] = i+1
-		idx_to_word[i+1] = word
-	
-	pickle.dump(word_to_idx,open('coco_word_to_idx','wb'))
-	pickle.dump(idx_to_word,open('coco_idx_to_word','wb'))
-	pickle.dump(database_stats,open('coco_stats','wb'))
-	print 'MS COCO dataset processed'
 
 
 def unique_words(caption_seqs):
@@ -82,6 +28,70 @@ def unique_words(caption_seqs):
             unique.add(word)
 
     return list(unique)
+
+# TODO: pass util path as argument
+# this function has been edited to read in pickled dictionaries produced by preprocess_coco function
+# also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
+# also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
+def preprocess_captions(caption_seqs):
+    word_to_idx = pickle.load(open('../utils/coco_word_to_idx','rb'))
+    idx_to_word = pickle.load(open('../utils/coco_idx_to_word','rb'))
+    database_stats = pickle.load(open('../utils/coco_stats','rb'))
+
+    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, database_stats['max_cap_len'])
+    return word_to_idx, idx_to_word, partial_caps, next_words
+
+
+# this function creates dictionaries and finds max caption length for the entire coco dataset
+def preprocess_coco(coco_dir, out_dir, include_val=True):
+    # get annotations
+    train_ann_filename = coco_dir+'/annotations/captions_train2014.json'
+    coco_train = COCO(train_ann_filename)
+    trainAnnIds = coco_train.getAnnIds()
+    trainAnns = coco_train.loadAnns(trainAnnIds)
+
+    if include_val:
+        val_ann_filename = coco_dir+'/annotations/captions_val2014.json'
+        coco_val = COCO(val_ann_filename)
+        valAnnIds = coco_val.getAnnIds()
+        valAnns = coco_val.loadAnns(valAnnIds)
+
+        anns = trainAnns + valAnns
+    else:
+        anns = trainAnns
+
+    # get captions from annotations and find longest
+    captions = [ann['caption'].encode('ascii') for ann in anns]
+    caption_seqs = [text_to_word_sequence(c) for c in captions]
+    max_cap_len = max([len(seq) for seq in caption_seqs])
+
+    database_stats = {'max_cap_len': max_cap_len}
+
+    # create dictionaries for dataset
+    unique = unique_words(caption_seqs)
+    word_to_idx = {STOP_TOKEN:STOP_TOKEN_IDX}
+    idx_to_word = {STOP_TOKEN_IDX:STOP_TOKEN}
+
+    for i, word in enumerate(unique):
+        # Start indices at 1 since 0 will represent padding
+        word_to_idx[word] = i+1
+        idx_to_word[i+1] = word
+
+    # Basic sanity checks
+    assert(idx_to_word[word_to_idx['the']] == 'the')
+    assert(word_to_idx[STOP_TOKEN] == STOP_TOKEN_IDX)
+    assert(idx_to_word[STOP_TOKEN_IDX] == STOP_TOKEN)
+    assert(word_to_idx[idx_to_word[1]] == 1)
+
+    # Save the data
+    with open(out_dir+'/coco_word_to_idx', 'w') as handle:
+        pickle.dump(word_to_idx, handle)
+    with open(out_dir+'/coco_idx_to_word', 'w') as handle:
+        pickle.dump(idx_to_word, handle)
+    with open(out_dir+'/coco_stats', 'w') as handle:
+        pickle.dump(database_stats, handle)
+
+    print 'Finished processing MS COCO dataset'
 
 
 def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
@@ -102,10 +112,11 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     return partial_caps, next_words
 
 
-def preprocess_captioned_images(num_imgs_to_sample, category_name='person', out_file='../keras_vgg_19/savedoc'):
+def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='person',
+                                out_file='../keras_vgg_19/savedoc'):
 
-    coco_filename='../external/coco/annotations/instances_train2014.json'
-    ann_filename = '../external/coco/annotations/captions_train2014.json'
+    coco_filename= coco_dir+'/annotations/instances_train2014.json'
+    ann_filename = coco_dir+'/annotations/captions_train2014.json'
     coco = COCO(coco_filename)
     coco_caps = COCO(ann_filename)
 
@@ -156,7 +167,8 @@ def preprocess_captioned_images(num_imgs_to_sample, category_name='person', out_
 
 if __name__ == '__main__':
     # first preprocess dataset - this only needs to be done once and then the files are saved
-    #preprocess_coco()
+    #preprocess_coco(coco_dir='../external/coco', out_dir='')
 
-    preprocess_captioned_images(num_imgs_to_sample=2, category_name='person', out_file='test')
+    preprocess_captioned_images(num_imgs_to_sample=2, coco_dir='../external/coco',
+                                category_name='person', out_file='test')
 
