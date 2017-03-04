@@ -21,10 +21,10 @@ def get_image(id,path):
 
 
 def words_to_caption(cap, word_to_idx, max_caption_len):
-    out = np.zeros(max_caption_len)
+    out = np.zeros((1,max_caption_len))
     if cap != []:
         for i,x in enumerate(cap):
-            out[i] = word_to_idx[x]
+            out[0][i] = word_to_idx[x]
     return out
 
 
