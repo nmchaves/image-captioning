@@ -173,7 +173,7 @@ if __name__ == '__main__':
     # # print(result)
 
     new_image = X[0][0].reshape((1,len(X[0][1])))
-    cap = []
+    cap = ["vegetables"]
     while len(cap) < max_caption_len:
         result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
         m = max(result[0])
@@ -182,5 +182,5 @@ if __name__ == '__main__':
         # out = idx_to_word[sample(result[0])]
         cap.append(out)
         print(cap)
-        if out == STOP_TOKEN:
-            break
+        # if out == STOP_TOKEN:
+        #     break
