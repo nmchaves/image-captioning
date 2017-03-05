@@ -126,7 +126,7 @@ if __name__ == '__main__':
     # for m in y:
 
     if args.train:
-        model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=5)
+        model.fit([X[0],X[1]],y, batch_size=20, nb_epoch=10)
         model.save("modelweights")
     else:
         model = load_model("modelweights")
