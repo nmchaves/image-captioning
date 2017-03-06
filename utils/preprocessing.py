@@ -128,7 +128,7 @@ def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='per
     anns = coco_caps.loadAnns(annIds)
 
     # get caption sequences
-    image_ids = [ann['image_id'] for ann in anns]
+    image_ids = list[set([ann['image_id'] for ann in anns])]
     total_num_images = len(image_ids)
     captions = [ann['caption'].encode('ascii') for ann in anns]
     caption_seqs = [text_to_word_sequence(c) for c in captions]
