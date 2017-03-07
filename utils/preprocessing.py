@@ -33,12 +33,12 @@ def unique_words(caption_seqs):
 # this function has been edited to read in pickled dictionaries produced by preprocess_coco function
 # also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
 # also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
-def preprocess_captions(caption_seqs):
+def preprocess_captions(caption_seqs, max_cap_len):
     word_to_idx = pickle.load(open('../utils/coco_word_to_idx','rb'))
     idx_to_word = pickle.load(open('../utils/coco_idx_to_word','rb'))
     database_stats = pickle.load(open('../utils/coco_stats','rb'))
 
-    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, database_stats['max_cap_len'])
+    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len)
     return word_to_idx, idx_to_word, partial_caps, next_words
 
 
@@ -134,19 +134,19 @@ def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, categ
     caption_lengths = [len(seq) for seq in caption_seqs]
 
     # filter out the long captions
-    caption_seqs = [seq for i, seq in enumerate(caption_seqs) if caption_lengths[i] <= max_cap_len]
     ann_image_ids = [id for i, id in enumerate(ann_image_ids) if caption_lengths[i] <= max_cap_len]
-    caption_lengths = [l for l in caption_seqs if l <= max_cap_len] # do not move this before the other filter steps!
+    caption_seqs = [seq for i, seq in enumerate(caption_seqs) if caption_lengths[i] <= max_cap_len]
+    caption_lengths = [l for l in caption_lengths if l <= max_cap_len] # do not move this before the other filter steps!
     total_num_captions = len(caption_seqs)
 
     # repeat an image id for each partial caption
     repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
-    word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs)
+    word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs, max_cap_len)
 
-    print(len(ann_image_ids), len(partial_caps))
-    assert(len(ann_image_ids)==len(partial_caps))
+    print(len(image_ids), len(partial_caps))
+    assert(len(image_ids)==len(partial_caps))
 
     '''
     # Determine how many (partial caption, image) examples to take to obtain
