@@ -126,7 +126,6 @@ if __name__ == '__main__':
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
     if args.train:
-        model.fit([X[0],X[1]],y, batch_size=20, nb_epoch=10)
         model.fit([images, partial_captions], next_words_one_hot, batch_size=10, nb_epoch=5)
         model.save("modelweights")
     else:
