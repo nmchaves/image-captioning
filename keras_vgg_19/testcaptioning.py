@@ -14,7 +14,6 @@ import argparse
 from cnn_preprocessing import predict_image
 
 # todo: keras streaming, variable length sequence, dynamic data
-# todo: try with 1000 actual images!!
 
 #put in preprocessing
 def get_image(id,path):
@@ -77,14 +76,13 @@ if __name__ == '__main__':
     with open(data_path, 'rb') as handle:
         data = pickle.load(handle)
 
-    X, y, word_to_idx, idx_to_word = data
+    X, next_words, word_to_idx, idx_to_word = data
+    image_ids = X[0]
+    partial_captions = X[1]
+    max_caption_len = partial_captions.shape[1]
     vocab_size = len(word_to_idx)
-    image_ids = X[0] #shape (batch_size,224,224,3)
 
-    # print([idx_to_word[n] if n!=0 else "null" for n in y],"NEXT_WORDS")
-    # print([idx_to_word[x] if x!=0 else "null" for x in X[1][0]])
-    # print(idx_to_word[y[0]])
-
+    # Load the CNN feature representation of each image
     images = []
     for image_id in image_ids:
         number = str(('_0000000000000'+str(image_id))[-12:])
@@ -96,18 +94,15 @@ if __name__ == '__main__':
 
         images.append(x)
 
-    X[0] = np.asarray(images).transpose((1,0,2))[0]
-    partial_captions = X[1]
-    max_caption_len = partial_captions.shape[1]
+    images = np.asarray(images).transpose((1,0,2))[0]
 
-    next_words = y # vocab_size
+    # Convert next words to one hot vectors
     new_next_words = []
     for x in next_words:
         a = np.zeros(vocab_size)
         a[x] = 1
         new_next_words.append(a)
-    next_words = np.asarray(new_next_words)
-    y = next_words
+    next_words_one_hot = np.asarray(new_next_words)
 
     # Model
     num_img_features = 4096 # dimensionality of CNN output
@@ -130,16 +125,8 @@ if __name__ == '__main__':
 
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    # for i,n in enumerate(X[1]):
-    #     # print([idx_to_word[x] if x!=0 else "null" for x in n],"FIRST CAPTION")
-    #     out = np.argmax(y[i])
-    #     if out!=0:
-    #         print(idx_to_word[out],"NEXT WORD")
-    # print(X[1].shape)
-    # for m in y:
-
     if args.train:
-        model.fit([X[0],X[1]],y, batch_size=10, nb_epoch=5)
+        model.fit([images, partial_captions], next_words_one_hot, batch_size=10, nb_epoch=5)
         model.save("modelweights")
     else:
         model = load_model("modelweights")
@@ -185,8 +172,8 @@ if __name__ == '__main__':
     # result = idx_to_word[np.argmax(result[0])]
     # # print(result)
 
-    new_image = X[0][0].reshape((1,len(X[0][1])))
-    cap = ["vegetables"]
+    new_image = images[0].T
+    cap = []
     while len(cap) < max_caption_len:
         result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
         m = max(result[0])
