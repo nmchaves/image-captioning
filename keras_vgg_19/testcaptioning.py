@@ -14,7 +14,6 @@ import argparse
 from cnn_preprocessing import predict_image
 
 # todo: keras streaming, variable length sequence, dynamic data
-# todo: try with 1000 actual images!!
 
 #put in preprocessing
 def get_image(id,path):
@@ -173,7 +172,7 @@ if __name__ == '__main__':
     # result = idx_to_word[np.argmax(result[0])]
     # # print(result)
 
-    new_image = X[0][0].reshape((1,len(X[0][1])))
+    new_image = images[0].T
     cap = []
     while len(cap) < max_caption_len:
         result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
