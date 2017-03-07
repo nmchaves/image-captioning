@@ -49,7 +49,7 @@ def relative_probs(all_preds):
 
 if __name__ == '__main__':
 
-    default_num_imgs = 50
+    default_num_partial_caps = 50
     data_path = 'preprocess_data'
     coco_dir = '../external/coco'
 
@@ -57,8 +57,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
     parser.add_argument("-p", "--preprocess", default=False,
                         type=bool, help='If true, apply preprocessing')
-    parser.add_argument("-n", "--num_imgs", default=default_num_imgs,
-                        type=int, help='Number of images to preprocess')
+    parser.add_argument("-n", "--num_partial_caps", default=default_num_partial_caps,
+                        type=int, help='Number of partial captions to use.')
     parser.add_argument("-t", "--train", default=False,
                         type=bool, help='If true, train the model. Else, load the saved model')
     parser.add_argument("-m", "--max_cap_len", default=15,
@@ -66,11 +66,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     train = args.train
-    num_imgs = args.num_imgs
+    num_partial_caps = args.num_partial_caps
 
     # Preprocess the data if necessary
     if args.preprocess:
-        preprocess_captioned_images(num_caps_to_sample=num_imgs, max_cap_len=args.max_cap_len,
+        preprocess_captioned_images(num_caps_to_sample=num_partial_caps, max_cap_len=args.max_cap_len,
                                     coco_dir=coco_dir, category_name='person', out_file=data_path)
 
     with open(data_path, 'rb') as handle:
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # Model
     num_img_features = 4096 # dimensionality of CNN output
     image_model = Sequential()
-    image_model.add(Dense(128, input_dim=4096, activation='relu'))
+    image_model.add(Dense(128, input_dim=num_img_features, activation='relu'))
 
     language_model = Sequential()
     language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))

@@ -137,7 +137,7 @@ def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, categ
     ann_image_ids = [id for i, id in enumerate(ann_image_ids) if caption_lengths[i] <= max_cap_len]
     caption_seqs = [seq for i, seq in enumerate(caption_seqs) if caption_lengths[i] <= max_cap_len]
     caption_lengths = [l for l in caption_lengths if l <= max_cap_len] # do not move this before the other filter steps!
-    total_num_captions = len(caption_seqs)
+    total_num_partial_captions = sum(caption_seqs)
 
     # repeat an image id for each partial caption
     repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
@@ -164,7 +164,7 @@ def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, categ
     '''
 
     X = [0,0]
-    number_of_items = min(num_caps_to_sample, total_num_captions)
+    number_of_items = min(num_caps_to_sample, total_num_partial_captions)
     X[0] = np.asarray(image_ids[:number_of_items])
     X[1] = np.asarray(partial_caps[:number_of_items])
     y = np.asarray(next_words[:number_of_items])
@@ -180,6 +180,3 @@ if __name__ == '__main__':
 
     preprocess_captioned_images(num_caps_to_sample=2, max_cap_len=20, coco_dir='../external/coco',
                                 category_name='person', out_file='test')
-
-
-    # print(caption_seqs[:5])
