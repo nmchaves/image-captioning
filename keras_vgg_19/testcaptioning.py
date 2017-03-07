@@ -172,7 +172,7 @@ if __name__ == '__main__':
     # result = idx_to_word[np.argmax(result[0])]
     # # print(result)
 
-    new_image = images[0].T
+    new_image = images[0].reshape((1, num_img_features))
     cap = []
     while len(cap) < max_caption_len:
         result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
