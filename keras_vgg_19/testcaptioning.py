@@ -37,6 +37,15 @@ def sample(preds, temperature=1.0):
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
 
+# function takes probabilites for all images - first row is for target image
+# outputs new probabilites for target image, relative to other images
+# i'm not sure this is a good method to use...
+def relative_probs(all_preds):
+    all_preds = np.asarray(all_preds).astype('float64')
+    total_preds = np.sum(all_preds,axis=0)
+    # division by zero
+    return np.divide(all_preds[0],total_preds)
+
 if __name__ == '__main__':
 
     default_num_imgs = 50
