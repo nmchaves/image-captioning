@@ -123,7 +123,7 @@ def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='per
 
     # choose categories/images
     catIds = coco.getCatIds(catNms=[category_name])
-    imgIds = coco.getImgIds(catIds=catIds)
+    imgIds = list(set(coco.getImgIds(catIds=catIds)))
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
 
