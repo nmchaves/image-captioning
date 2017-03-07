@@ -110,8 +110,9 @@ if __name__ == '__main__':
     y = next_words
 
     # Model
+    num_img_features = 4096 # dimensionality of CNN output
     image_model = Sequential()
-    image_model.add(Dense(128, input_dim=25088))
+    image_model.add(Dense(128, input_dim=4096, activation='relu'))
 
     language_model = Sequential()
     language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
