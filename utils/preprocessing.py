@@ -112,7 +112,7 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     return partial_caps, next_words
 
 
-def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='person',
+def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, category_name='person',
                                 out_file='../keras_vgg_19/savedoc'):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -128,35 +128,43 @@ def preprocess_captioned_images(num_imgs_to_sample, coco_dir, category_name='per
     anns = coco_caps.loadAnns(annIds)
 
     # get caption sequences
-    image_ids = [ann['image_id'] for ann in anns]
-    total_num_images = len(image_ids)
+    ann_image_ids = [ann['image_id'] for ann in anns]
     captions = [ann['caption'].encode('ascii') for ann in anns]
     caption_seqs = [text_to_word_sequence(c) for c in captions]
+    caption_lengths = [len(seq) for seq in caption_seqs]
 
-    # get image ids for each partial caption
-    num_partials = [len(seq) for seq in caption_seqs]
-    repeated_ids = [[img_id]*n for img_id,n in zip(image_ids,num_partials)]
+    # filter out the long captions
+    caption_seqs = [seq for i, seq in enumerate(caption_seqs) if caption_lengths[i] <= max_cap_len]
+    ann_image_ids = [id for i, id in enumerate(ann_image_ids) if caption_lengths[i] <= max_cap_len]
+    caption_lengths = [l for l in caption_seqs if l <= max_cap_len] # do not move this before the other filter steps!
+    total_num_captions = len(caption_seqs)
+
+    # repeat an image id for each partial caption
+    repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
     word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs)
 
-    print(len(image_ids), len(partial_caps))
-    assert(len(image_ids)==len(partial_caps))
+    print(len(ann_image_ids), len(partial_caps))
+    assert(len(ann_image_ids)==len(partial_caps))
 
+    '''
     # Determine how many (partial caption, image) examples to take to obtain
-    # `num_images` total distinct images (including all partial captions)
-    if num_imgs_to_sample < total_num_images:
+    # `num_imgs_to_sample` total distinct images (including all partial captions)
+    if num_caps_to_sample < total_num_images:
         number_of_items = 0
-        for i, count in enumerate(num_partials):
-            if i >= num_imgs_to_sample:
+        for i, l in enumerate(caption_lengths):
+            if i >= num_caps_to_sample:
                 break
-            number_of_items += count
+            number_of_items += l
     else:
-        print total_num_images, ' were requested, but only ', num_imgs_to_sample, \
+        print total_num_images, ' were requested, but only ', num_caps_to_sample, \
             ' are available in this category. Processing all images in the category...'
         number_of_items = len(partial_caps)
+    '''
 
     X = [0,0]
+    number_of_items = min(num_caps_to_sample, total_num_captions)
     X[0] = np.asarray(image_ids[:number_of_items])
     X[1] = np.asarray(partial_caps[:number_of_items])
     y = np.asarray(next_words[:number_of_items])
@@ -170,7 +178,8 @@ if __name__ == '__main__':
     # first preprocess dataset - this only needs to be done once and then the files are saved
     #preprocess_coco(coco_dir='../external/coco', out_dir='')
 
-    preprocess_captioned_images(num_imgs_to_sample=2, coco_dir='../external/coco',
+    preprocess_captioned_images(num_caps_to_sample=2, max_cap_len=20, coco_dir='../external/coco',
                                 category_name='person', out_file='test')
 
 
+    # print(caption_seqs[:5])
