@@ -13,6 +13,8 @@ from utils.preprocessing import preprocess_captioned_images, STOP_TOKEN
 import argparse
 from cnn_preprocessing import predict_image
 
+# todo: keras streaming, variable length sequence, dynamic data
+# todo: try with 1000 actual images!!
 
 #put in preprocessing
 def get_image(id,path):
@@ -51,6 +53,8 @@ if __name__ == '__main__':
                         type=int, help='Number of images to preprocess')
     parser.add_argument("-t", "--train", default=False,
                         type=bool, help='If true, train the model. Else, load the saved model')
+    parser.add_argument("-m", "--max_cap_len", default=15,
+                        type=int, help='Maximum caption length. ~95% of captions have length <= 15')
 
     args = parser.parse_args()
     train = args.train
@@ -58,8 +62,8 @@ if __name__ == '__main__':
 
     # Preprocess the data if necessary
     if args.preprocess:
-        preprocess_captioned_images(num_imgs_to_sample=num_imgs, coco_dir=coco_dir,
-                                    category_name='person', out_file=data_path)
+        preprocess_captioned_images(num_caps_to_sample=num_imgs, max_cap_len=args.max_cap_len,
+                                    coco_dir=coco_dir, category_name='person', out_file=data_path)
 
     with open(data_path, 'rb') as handle:
         data = pickle.load(handle)
@@ -82,7 +86,6 @@ if __name__ == '__main__':
             x = predict_image(str(image_id))
 
         images.append(x)
-
 
     X[0] = np.asarray(images).transpose((1,0,2))[0]
     partial_captions = X[1]
