@@ -174,3 +174,4 @@ if __name__ == '__main__':
                                 category_name='person', out_file='test')
 
 
+    # print(caption_seqs[:5])
