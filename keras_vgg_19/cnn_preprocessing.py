@@ -12,7 +12,7 @@ import numpy as np
 from refexp import Refexp
 
 base_model = VGG19(weights='imagenet')
-model = Model(input=base_model.input, output=base_model.get_layer('flatten').output)
+model = Model(input=base_model.input, output=base_model.get_layer('fc2').output)
 
 refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
 coco_filename='../external/coco/annotations/instances_train2014.json'
