@@ -1,15 +1,16 @@
 import sys
 sys.path.append('../') # needed for Azure VM to see utils directory
 
+from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
-    Embedding, TimeDistributed, GRU, RepeatVector, Merge
+    Embedding, TimeDistributed, GRU, RepeatVector, Merge, Masking, LSTM
 from keras.applications import VGG19
 # from keras.preprocessing.text import text_to_word_sequence
 # from keras.preprocessing import image
 import numpy as np
 import pickle
-from utils.preprocessing import preprocess_captioned_images, STOP_TOKEN
+from utils.preprocessing import preprocess_captioned_images, load_dicts, STOP_TOKEN
 import argparse
 from cnn_preprocessing import predict_image
 
@@ -47,39 +48,19 @@ def relative_probs(all_preds):
     # division by zero
     return np.divide(all_preds[0],total_preds)
 
-if __name__ == '__main__':
 
-    default_num_partial_caps = 50
-    data_path = 'preprocess_data'
-    coco_dir = '../external/coco'
-
-    # Parse program arguments
-    parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
-    parser.add_argument("-p", "--preprocess", default=False,
-                        type=bool, help='If true, apply preprocessing')
-    parser.add_argument("-n", "--num_partial_caps", default=default_num_partial_caps,
-                        type=int, help='Number of partial captions to use.')
-    parser.add_argument("-t", "--train", default=False,
-                        type=bool, help='If true, train the model. Else, load the saved model')
-    parser.add_argument("-m", "--max_cap_len", default=15,
-                        type=int, help='Maximum caption length. ~95% of captions have length <= 15')
-
-    args = parser.parse_args()
-    train = args.train
-    num_partial_caps = args.num_partial_caps
-
+def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_idx):
     # Preprocess the data if necessary
-    if args.preprocess:
-        preprocess_captioned_images(num_caps_to_sample=num_partial_caps, max_cap_len=args.max_cap_len,
-                                    coco_dir=coco_dir, category_name='person', out_file=data_path)
+    if preprocess:
+        preprocess_captioned_images(stream_num=stream_num, stream_size=stream_size, word_to_idx=word_to_idx,
+                                    max_cap_len=max_caption_len, coco_dir=coco_dir, category_name='person',
+                                    out_file=data_path)
 
     with open(data_path, 'rb') as handle:
-        data = pickle.load(handle)
+        X, next_words = pickle.load(handle)
 
-    X, next_words, word_to_idx, idx_to_word = data
     image_ids = X[0]
     partial_captions = X[1]
-    max_caption_len = partial_captions.shape[1]
     vocab_size = len(word_to_idx)
 
     # Load the CNN feature representation of each image
@@ -104,29 +85,75 @@ if __name__ == '__main__':
         new_next_words.append(a)
     next_words_one_hot = np.asarray(new_next_words)
 
-    # Model
+    return images, partial_captions, next_words_one_hot, \
+        vocab_size, idx_to_word, word_to_idx
+
+if __name__ == '__main__':
+
+    default_num_partial_caps = 50
+    data_path = 'preprocess_data'
+    coco_dir = '../external/coco'
+
+    # Parse program arguments
+    parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
+    parser.add_argument("-p", "--preprocess", default=False,
+                        type=bool, help='If true, apply preprocessing')
+    parser.add_argument("-n", "--num_partial_caps", default=default_num_partial_caps,
+                        type=int, help='Number of partial captions to use.')
+    parser.add_argument("-t", "--train", default=False,
+                        type=bool, help='If true, train the model. Else, load the saved model')
+    parser.add_argument("-m", "--max_cap_len", default=15,
+                        type=int, help='Maximum caption length. ~95% of captions have length <= 15')
+    parser.add_argument("-s", "--stream_size", default=100,
+                        type=int, help='Stream size')
+
+    args = parser.parse_args()
+    train = args.train
+    num_partial_caps = args.num_partial_caps
+    preproc = args.preprocess
+    max_caption_len = args.max_cap_len
+    stream_size = args.stream_size
+    num_streams = num_partial_caps / stream_size
+
+    word_to_idx, idx_to_word = load_dicts()
+    vocab_size = len(word_to_idx)
+
+    # Define the Model
     num_img_features = 4096 # dimensionality of CNN output
     image_model = Sequential()
-    image_model.add(Dense(128, input_dim=num_img_features, activation='relu'))
+    image_model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
 
     language_model = Sequential()
-    language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
-    language_model.add(GRU(output_dim=128, return_sequences=True))
-    language_model.add(TimeDistributed(Dense(128),name="lang"))
+    dummy = np.zeros(max_caption_len)
+    language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
+    #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
+    language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len))
+    language_model.add(LSTM(output_dim=512, return_sequences=True))
+    language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
 
     image_model.add(RepeatVector(max_caption_len))
 
     model = Sequential()
     model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(GRU(256, return_sequences=False))
+    model.add(LSTM(512, return_sequences=False))
 
     model.add(Dense(vocab_size))
     model.add(Activation('softmax',name='soft'))
 
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+    model.compile(loss='categorical_crossentropy', optimizer=opt)
 
+    images = None
     if args.train:
-        model.fit([images, partial_captions], next_words_one_hot, batch_size=10, nb_epoch=5)
+        for i in range(num_streams):
+            print "Stream #: ", i+1, '/', num_streams
+            images, partial_captions, next_words_one_hot, \
+            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i + 1, stream_size=stream_size, preprocess=preproc,
+                                                              max_caption_len=max_caption_len, word_to_idx=word_to_idx)
+
+            model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
+            model.save('modelweights_stream_' + str(i))
+
         model.save("modelweights")
     else:
         model = load_model("modelweights")
@@ -173,7 +200,7 @@ if __name__ == '__main__':
     # # print(result)
 
     new_image = images[0].reshape((1, num_img_features))
-    cap = []
+    cap = ["vegetables"]
     while len(cap) < max_caption_len:
         result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
         m = max(result[0])
