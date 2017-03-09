@@ -23,7 +23,7 @@ def get_image(id,path):
 
 
 def words_to_caption(cap, word_to_idx, max_caption_len):
-    out = np.zeros((1,max_caption_len))
+    out = np.zeros((1,max_caption_len-1))
     if cap != []:
         for i,x in enumerate(cap):
             out[0][i] = word_to_idx[x]
@@ -124,14 +124,14 @@ if __name__ == '__main__':
     image_model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
 
     language_model = Sequential()
-    dummy = np.zeros(max_caption_len)
+    dummy = np.zeros(max_caption_len-1)
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
-    language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len))
+    language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
     language_model.add(LSTM(output_dim=512, return_sequences=True))
     language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
 
-    image_model.add(RepeatVector(max_caption_len))
+    image_model.add(RepeatVector(max_caption_len-1))
 
     model = Sequential()
     model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
@@ -148,7 +148,7 @@ if __name__ == '__main__':
         for i in range(num_streams):
             print "Stream #: ", i+1, '/', num_streams
             images, partial_captions, next_words_one_hot, \
-            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i + 1, stream_size=stream_size, preprocess=preproc,
+            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
             model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
