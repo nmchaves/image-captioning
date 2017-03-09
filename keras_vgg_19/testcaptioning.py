@@ -59,9 +59,26 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     with open(data_path, 'rb') as handle:
         X, next_words = pickle.load(handle)
 
+    if True:
+
+
+    	
+        new_X1 = []
+        new_X0 = []
+        new_y = []
+        for i,x in enumerate(X[1]):
+            if x[-1] != 0:
+                new_X1.append(x)
+                new_X0.append(X[0][i])
+                new_y.append(y[i])
+
+    print([idx_to_word[x] for x in new_X1[7]],idx_to_word[y[7]])
+
     image_ids = X[0]
     partial_captions = X[1]
     vocab_size = len(word_to_idx)
+
+
 
     # Load the CNN feature representation of each image
     images = []
