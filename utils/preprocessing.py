@@ -116,7 +116,7 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
 
 # stream size is in terms of # of partial captions
 def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
-                                out_file='../keras_vgg_19/savedoc'):
+                                out_file='../keras_vgg_19/savedoc', NO_PADDING=False):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
     ann_filename = coco_dir+'/annotations/captions_train2014.json'
@@ -147,6 +147,18 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
     partial_caps, next_words = preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
+
+    if NO_PADDING:
+        new_X1 = []
+        new_X0 = []
+        new_y = []
+        for i,x in enumerate(X[1]):
+            if x[-1] != 0:
+                new_X1.append(x)
+                new_X0.append(X[0][i])
+                new_y.append(y[i])
+
+    print([idx_to_word[x] for x in new_X1[7]],idx_to_word[y[7]])
 
     print(len(image_ids), len(partial_caps))
     assert(len(image_ids)==len(partial_caps))
