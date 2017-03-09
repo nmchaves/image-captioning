@@ -47,30 +47,11 @@ def relative_probs(all_preds):
     # division by zero
     return np.divide(all_preds[0],total_preds)
 
-if __name__ == '__main__':
 
-    default_num_partial_caps = 50
-    data_path = 'preprocess_data'
-    coco_dir = '../external/coco'
-
-    # Parse program arguments
-    parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
-    parser.add_argument("-p", "--preprocess", default=False,
-                        type=bool, help='If true, apply preprocessing')
-    parser.add_argument("-n", "--num_partial_caps", default=default_num_partial_caps,
-                        type=int, help='Number of partial captions to use.')
-    parser.add_argument("-t", "--train", default=False,
-                        type=bool, help='If true, train the model. Else, load the saved model')
-    parser.add_argument("-m", "--max_cap_len", default=15,
-                        type=int, help='Maximum caption length. ~95% of captions have length <= 15')
-
-    args = parser.parse_args()
-    train = args.train
-    num_partial_caps = args.num_partial_caps
-
+def load_batch(batch_num, batch_size, preprocess, max_caption_len):
     # Preprocess the data if necessary
-    if args.preprocess:
-        preprocess_captioned_images(num_caps_to_sample=num_partial_caps, max_cap_len=args.max_cap_len,
+    if preprocess:
+        preprocess_captioned_images(batch_num=batch_num, batch_size=batch_size, max_cap_len=max_caption_len,
                                     coco_dir=coco_dir, category_name='person', out_file=data_path)
 
     with open(data_path, 'rb') as handle:
@@ -79,7 +60,6 @@ if __name__ == '__main__':
     X, next_words, word_to_idx, idx_to_word = data
     image_ids = X[0]
     partial_captions = X[1]
-    max_caption_len = partial_captions.shape[1]
     vocab_size = len(word_to_idx)
 
     # Load the CNN feature representation of each image
@@ -103,6 +83,36 @@ if __name__ == '__main__':
         a[x] = 1
         new_next_words.append(a)
     next_words_one_hot = np.asarray(new_next_words)
+
+    return images, partial_captions, next_words_one_hot, \
+        vocab_size, idx_to_word, word_to_idx
+
+if __name__ == '__main__':
+
+    default_num_partial_caps = 50
+    data_path = 'preprocess_data'
+    coco_dir = '../external/coco'
+
+    # Parse program arguments
+    parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
+    parser.add_argument("-p", "--preprocess", default=False,
+                        type=bool, help='If true, apply preprocessing')
+    parser.add_argument("-n", "--num_partial_caps", default=default_num_partial_caps,
+                        type=int, help='Number of partial captions to use.')
+    parser.add_argument("-t", "--train", default=False,
+                        type=bool, help='If true, train the model. Else, load the saved model')
+    parser.add_argument("-m", "--max_cap_len", default=15,
+                        type=int, help='Maximum caption length. ~95% of captions have length <= 15')
+
+    args = parser.parse_args()
+    train = args.train
+    num_partial_caps = args.num_partial_caps
+    preproc = args.preprocess
+    max_caption_len = args.max_cap_len
+
+    images, partial_captions, next_words_one_hot, \
+        vocab_size, idx_to_word, word_to_idx = load_batch(batch_num=1, batch_size=num_partial_caps,
+                                                                           preprocess=preproc, max_cap_len=max_caption_len)
 
     # Model
     num_img_features = 4096 # dimensionality of CNN output
