@@ -113,14 +113,11 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
         for i, word in enumerate(seq[:-1]):
             partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
             next_words.append(word_to_idx[seq[i+1]])
-        # Append the full sequence and use the stop token as the next word
-        partial_caps.append([word_to_idx[w] for w in seq])
-        next_words.append(STOP_TOKEN_IDX)
 
-    # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
-    # last word of a caption will always be included in the partial caption so that we can
-    # predict the stop token
-    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len, padding='post',value=STOP_TOKEN_IDX)
+    # Pad sequences with stop token indices such that they all have length 'max_caption_len'-1 (the -1 accounts for
+    # the fact that we never predict a start token. Note that the last word of a caption will always be included in
+    # the partial caption so that we can predict the stop token. The stop token should never appear in a partial caption.
+    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len-1, padding='post',value=STOP_TOKEN_IDX)
     return partial_caps, next_words
 
 
@@ -143,7 +140,7 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     # get caption sequences. insert a start token at the beginning of each caption
     ann_image_ids = [ann['image_id'] for ann in anns]
     captions = [ann['caption'].encode('ascii') for ann in anns]
-    caption_seqs = [text_to_word_sequence(c).insert(0, START_TOKEN) for c in captions]
+    caption_seqs = [[START_TOKEN] + text_to_word_sequence(c) + [STOP_TOKEN] for c in captions]
     caption_lengths = [len(seq) for seq in caption_seqs]
 
     # filter out the long captions
@@ -153,13 +150,13 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     total_num_partial_captions = sum(caption_lengths)
 
     # repeat an image id for each partial caption
-    repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
+    repeated_ids = [[img_id]*(n-1) for img_id,n in zip(ann_image_ids,caption_lengths)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
-    partial_caps, next_words = preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
+    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len) #preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
 
     print(len(image_ids), len(partial_caps))
-    assert(len(image_ids)==len(partial_caps))
+    assert(len(image_ids) == len(partial_caps))
 
     '''
     # Determine how many (partial caption, image) examples to take to obtain
