@@ -33,14 +33,16 @@ def unique_words(caption_seqs):
 # this function has been edited to read in pickled dictionaries produced by preprocess_coco function
 # also now returns just the two dictionaries, partial captions, and next words as indices (not one-hot)
 # also takes caption_seqs instead of captions, which makes it easier to repeat the image_ids
-def preprocess_captions(caption_seqs, max_cap_len):
+def preprocess_captions(caption_seqs, word_to_idx, max_cap_len):
+    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len)
+    return partial_caps, next_words
+
+
+def load_dicts():
     word_to_idx = pickle.load(open('../utils/coco_word_to_idx','rb'))
     idx_to_word = pickle.load(open('../utils/coco_idx_to_word','rb'))
     database_stats = pickle.load(open('../utils/coco_stats','rb'))
-
-    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len)
-    return word_to_idx, idx_to_word, partial_caps, next_words
-
+    return word_to_idx, idx_to_word
 
 # this function creates dictionaries and finds max caption length for the entire coco dataset
 def preprocess_coco(coco_dir, out_dir, include_val=True):
@@ -112,8 +114,8 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     return partial_caps, next_words
 
 
-# batch size is in terms of # of partial captions
-def preprocess_captioned_images(batch_num, batch_size, max_cap_len, coco_dir, category_name='person',
+# stream size is in terms of # of partial captions
+def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
                                 out_file='../keras_vgg_19/savedoc'):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -144,7 +146,7 @@ def preprocess_captioned_images(batch_num, batch_size, max_cap_len, coco_dir, ca
     repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
-    word_to_idx, idx_to_word, partial_caps, next_words = preprocess_captions(caption_seqs, max_cap_len)
+    partial_caps, next_words = preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
 
     print(len(image_ids), len(partial_caps))
     assert(len(image_ids)==len(partial_caps))
@@ -166,12 +168,12 @@ def preprocess_captioned_images(batch_num, batch_size, max_cap_len, coco_dir, ca
 
     X = [0,0]
     # TODO: handle the case where you request indices out of range
-    number_of_items = min(batch_size, total_num_partial_captions)
-    item_range = range((batch_num - 1)*batch_size, batch_num*batch_size)
-    X[0] = np.asarray(image_ids[item_range])
+    number_of_items = min(stream_size, total_num_partial_captions)
+    item_range = range((stream_num - 1) * stream_size, stream_num * stream_size)
+    X[0] = np.asarray(image_ids)[item_range]
     X[1] = np.asarray(partial_caps[item_range])
-    y = np.asarray(next_words[item_range])
-    out = X, y, word_to_idx, idx_to_word
+    y = np.asarray(next_words)[item_range]
+    out = X, y
 
     with open(out_file, 'w') as handle:
         pickle.dump(out, handle)
@@ -181,5 +183,5 @@ if __name__ == '__main__':
     # first preprocess dataset - this only needs to be done once and then the files are saved
     #preprocess_coco(coco_dir='../external/coco', out_dir='')
 
-    preprocess_captioned_images(batch_num=1, batch_size=2, max_cap_len=20, coco_dir='../external/coco',
+    preprocess_captioned_images(stream_num=1, stream_size=2, max_cap_len=20, coco_dir='../external/coco',
                                 category_name='person', out_file='test')
