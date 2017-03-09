@@ -3,7 +3,7 @@ sys.path.append('../') # needed for Azure VM to see utils directory
 
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
-    Embedding, TimeDistributed, GRU, RepeatVector, Merge
+    Embedding, TimeDistributed, GRU, RepeatVector, Merge, Masking
 from keras.applications import VGG19
 # from keras.preprocessing.text import text_to_word_sequence
 # from keras.preprocessing import image
@@ -110,6 +110,7 @@ if __name__ == '__main__':
     image_model.add(Dense(128, input_dim=num_img_features, activation='relu'))
 
     language_model = Sequential()
+    language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     language_model.add(Embedding(vocab_size, 256, input_length=max_caption_len))
     language_model.add(GRU(output_dim=128, return_sequences=True))
     language_model.add(TimeDistributed(Dense(128),name="lang"))
