@@ -103,16 +103,20 @@ if __name__ == '__main__':
                         type=bool, help='If true, train the model. Else, load the saved model')
     parser.add_argument("-m", "--max_cap_len", default=15,
                         type=int, help='Maximum caption length. ~95% of captions have length <= 15')
+    parser.add_argument("-b", "--batch_size", default=100,
+                        type=int, help='Batch size')
 
     args = parser.parse_args()
     train = args.train
     num_partial_caps = args.num_partial_caps
     preproc = args.preprocess
     max_caption_len = args.max_cap_len
+    batch_size = args.batch_size
+    num_batches = num_partial_caps / batch_size
 
     images, partial_captions, next_words_one_hot, \
         vocab_size, idx_to_word, word_to_idx = load_batch(batch_num=1, batch_size=num_partial_caps,
-                                                                           preprocess=preproc, max_cap_len=max_caption_len)
+                                                                preprocess=preproc, max_caption_len=max_caption_len)
 
     # Model
     num_img_features = 4096 # dimensionality of CNN output

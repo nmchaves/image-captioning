@@ -112,7 +112,8 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
     return partial_caps, next_words
 
 
-def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, category_name='person',
+# batch size is in terms of # of partial captions
+def preprocess_captioned_images(batch_num, batch_size, max_cap_len, coco_dir, category_name='person',
                                 out_file='../keras_vgg_19/savedoc'):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -164,10 +165,12 @@ def preprocess_captioned_images(num_caps_to_sample, max_cap_len, coco_dir, categ
     '''
 
     X = [0,0]
-    number_of_items = min(num_caps_to_sample, total_num_partial_captions)
-    X[0] = np.asarray(image_ids[:number_of_items])
-    X[1] = np.asarray(partial_caps[:number_of_items])
-    y = np.asarray(next_words[:number_of_items])
+    # TODO: handle the case where you request indices out of range
+    number_of_items = min(batch_size, total_num_partial_captions)
+    item_range = range((batch_num - 1)*batch_size, batch_num*batch_size)
+    X[0] = np.asarray(image_ids[item_range])
+    X[1] = np.asarray(partial_caps[item_range])
+    y = np.asarray(next_words[item_range])
     out = X, y, word_to_idx, idx_to_word
 
     with open(out_file, 'w') as handle:
@@ -178,5 +181,5 @@ if __name__ == '__main__':
     # first preprocess dataset - this only needs to be done once and then the files are saved
     #preprocess_coco(coco_dir='../external/coco', out_dir='')
 
-    preprocess_captioned_images(num_caps_to_sample=2, max_cap_len=20, coco_dir='../external/coco',
+    preprocess_captioned_images(batch_num=1, batch_size=2, max_cap_len=20, coco_dir='../external/coco',
                                 category_name='person', out_file='test')
