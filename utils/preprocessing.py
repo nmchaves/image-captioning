@@ -12,6 +12,8 @@ import cPickle as pickle
 
 STOP_TOKEN = '$STOP$'
 STOP_TOKEN_IDX = 0
+START_TOKEN = '$START$'
+START_TOKEN_IDX = 1
 
 
 def preprocess_image(img_path):
@@ -71,26 +73,34 @@ def preprocess_coco(coco_dir, out_dir, include_val=True):
 
     # create dictionaries for dataset
     unique = unique_words(caption_seqs)
-    word_to_idx = {STOP_TOKEN:STOP_TOKEN_IDX}
-    idx_to_word = {STOP_TOKEN_IDX:STOP_TOKEN}
+    word_to_idx = {
+        STOP_TOKEN: STOP_TOKEN_IDX,
+        START_TOKEN: START_TOKEN_IDX
+    }
+    idx_to_word = {
+        STOP_TOKEN_IDX: STOP_TOKEN,
+        START_TOKEN_IDX: START_TOKEN
+    }
 
     for i, word in enumerate(unique):
-        # Start indices at 1 since 0 will represent padding
-        word_to_idx[word] = i+1
-        idx_to_word[i+1] = word
+        # Start indices at 2 since 0 and 1 are reserved for start and stop tokens
+        word_to_idx[word] = i+2
+        idx_to_word[i+2] = word
 
     # Basic sanity checks
     assert(idx_to_word[word_to_idx['the']] == 'the')
     assert(word_to_idx[STOP_TOKEN] == STOP_TOKEN_IDX)
     assert(idx_to_word[STOP_TOKEN_IDX] == STOP_TOKEN)
-    assert(word_to_idx[idx_to_word[1]] == 1)
+    assert(word_to_idx[START_TOKEN] == START_TOKEN_IDX)
+    assert(idx_to_word[START_TOKEN_IDX] == START_TOKEN)
+    assert(word_to_idx[idx_to_word[2]] == 2)
 
     # Save the data
-    with open(out_dir+'/coco_word_to_idx', 'w') as handle:
+    with open(out_dir+'/coco_word_to_idx', 'w+') as handle:
         pickle.dump(word_to_idx, handle)
-    with open(out_dir+'/coco_idx_to_word', 'w') as handle:
+    with open(out_dir+'/coco_idx_to_word', 'w+') as handle:
         pickle.dump(idx_to_word, handle)
-    with open(out_dir+'/coco_stats', 'w') as handle:
+    with open(out_dir+'/coco_stats', 'w+') as handle:
         pickle.dump(database_stats, handle)
 
     print 'Finished processing MS COCO dataset'
@@ -103,14 +113,11 @@ def partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len):
         for i, word in enumerate(seq[:-1]):
             partial_caps.append([word_to_idx[w] for w in seq[:i+1]])
             next_words.append(word_to_idx[seq[i+1]])
-        # Append the full sequence and use the stop token as the next word
-        partial_caps.append([word_to_idx[w] for w in seq])
-        next_words.append(STOP_TOKEN_IDX)
 
-    # Pad sequences with 0's such that they all have length 'max_caption_len'. Note that the
-    # last word of a caption will always be included in the partial caption so that we can
-    # predict the stop token
-    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len, padding='post',value=STOP_TOKEN_IDX)
+    # Pad sequences with stop token indices such that they all have length 'max_caption_len'-1 (the -1 accounts for
+    # the fact that we never predict a start token. Note that the last word of a caption will always be included in
+    # the partial caption so that we can predict the stop token. The stop token should never appear in a partial caption.
+    partial_caps = sequence.pad_sequences(partial_caps, maxlen=max_cap_len-1, padding='post',value=STOP_TOKEN_IDX)
     return partial_caps, next_words
 
 
@@ -130,10 +137,10 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
 
-    # get caption sequences
+    # get caption sequences. insert a start token at the beginning of each caption
     ann_image_ids = [ann['image_id'] for ann in anns]
     captions = [ann['caption'].encode('ascii') for ann in anns]
-    caption_seqs = [text_to_word_sequence(c) for c in captions]
+    caption_seqs = [[START_TOKEN] + text_to_word_sequence(c) + [STOP_TOKEN] for c in captions]
     caption_lengths = [len(seq) for seq in caption_seqs]
 
     # filter out the long captions
@@ -143,13 +150,13 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     total_num_partial_captions = sum(caption_lengths)
 
     # repeat an image id for each partial caption
-    repeated_ids = [[img_id]*n for img_id,n in zip(ann_image_ids,caption_lengths)]
+    repeated_ids = [[img_id]*(n-1) for img_id,n in zip(ann_image_ids,caption_lengths)]
     image_ids = [img_id for rep_id in repeated_ids for img_id in rep_id]
 
-    partial_caps, next_words = preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
+    partial_caps, next_words = partial_captions_and_next_words(caption_seqs, word_to_idx, max_cap_len) #preprocess_captions(caption_seqs, word_to_idx, max_cap_len)
 
     print(len(image_ids), len(partial_caps))
-    assert(len(image_ids)==len(partial_caps))
+    assert(len(image_ids) == len(partial_caps))
 
     '''
     # Determine how many (partial caption, image) examples to take to obtain
@@ -181,7 +188,7 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
 
 if __name__ == '__main__':
     # first preprocess dataset - this only needs to be done once and then the files are saved
-    #preprocess_coco(coco_dir='../external/coco', out_dir='')
+    preprocess_coco(coco_dir='../external/coco', out_dir='')
 
-    preprocess_captioned_images(stream_num=1, stream_size=2, max_cap_len=20, coco_dir='../external/coco',
-                                category_name='person', out_file='test')
+    #preprocess_captioned_images(stream_num=1, stream_size=2, max_cap_len=20, coco_dir='../external/coco',
+    #                            category_name='person', out_file='test')
