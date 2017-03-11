@@ -112,8 +112,8 @@ def load_last_saved_model(model_weights_dir):
     # Get all the files in the directory that contains the model weights
     saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s))]
 
-    # Return the model with the largest stream index (the index should be the last char of the filename)
-    last_model_fname = sorted(saved_models, key=lambda ss: ss[-1], reverse=True)[0]
+    # Return the model with the largest stream index (the index should be after the last '_' of the filename)
+    last_model_fname = sorted(saved_models, key=lambda ss: ss.split('_')[-1], reverse=True)[0]
     return load_model(model_weights_dir + '/' + last_model_fname)
 
 
