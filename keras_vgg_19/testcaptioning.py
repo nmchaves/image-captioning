@@ -3,6 +3,8 @@ sys.path.append('../') # needed for Azure VM to see utils directory
 
 from keras.regularizers import l2, activity_l2
 from keras.callbacks import EarlyStopping
+from os import path, makedirs, listdir
+from shutil import rmtree
 from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
@@ -108,6 +110,16 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     return images, partial_captions, next_words_one_hot, \
         vocab_size, idx_to_word, word_to_idx
 
+
+def load_last_saved_model(model_weights_dir):
+    # Get all the files in the directory that contains the model weights
+    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s))]
+
+    # Return the model with the largest stream index (the index should be the last char of the filename)
+    last_model_fname = sorted(saved_models, key=lambda ss: ss[-1], reverse=True)[0]
+    return load_model(model_weights_dir + '/' + last_model_fname)
+
+
 if __name__ == '__main__':
 
     default_num_partial_caps = 50
@@ -126,6 +138,7 @@ if __name__ == '__main__':
                         type=int, help='Maximum caption length. ~95% of captions have length <= 15')
     parser.add_argument("-s", "--stream_size", default=100,
                         type=int, help='Stream size')
+    parser.add_argument("-dir", "--model_weights_dir", type=str)
 
     args = parser.parse_args()
     train = args.train
@@ -134,6 +147,25 @@ if __name__ == '__main__':
     max_caption_len = args.max_cap_len
     stream_size = args.stream_size
     num_streams = num_partial_caps / stream_size
+    model_weights_dir = args.model_weights_dir
+
+    if path.exists(model_weights_dir):
+        # TODO: Check that it's ok to delete this directory
+        # e.g. make sure that the dir is not a parent dir
+
+        # Make sure that the user agrees to delete this directory
+        print 'Caution! ', model_weights_dir, ' already exists!' \
+            ' Do you want to delete all of its contents? (Y/N): '
+        user_response = raw_input()
+        if user_response == 'Y':
+            print 'Deleting contents of directory', model_weights_dir
+            rmtree(model_weights_dir)
+        else:
+            print 'Exiting. Please run again with a different directory for the model weights.'
+            exit(0)
+
+    # Create the directory for saving model weights
+    makedirs(model_weights_dir)
 
     word_to_idx, idx_to_word = load_dicts()
     vocab_size = len(word_to_idx)
@@ -200,11 +232,16 @@ if __name__ == '__main__':
 
 	    early_stopping = EarlyStopping(monitor='val_loss', patience=10)
             model.fit([images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=2,validation_split=0.2,callbacks=[early_stopping])
-            model.save('modelweights_stream_' + str(i))
+            #model.save('modelweights_stream_' + str(i))
+            #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
+            model.save(model_weights_dir + '/modelweights_stream_' + str(i))
 
-        model.save("modelweights")
+
     else:
-        model = load_model("modelweights_test1/modelweights_stream_4")
+        #model = load_model("modelweights_test1/modelweights_stream_4")
+
+        # Load the last stream that was saved
+        model = load_last_saved_model(model_weights_dir)
 
     # intermediate_layer_model = Model(input=model.input,
     #                              output=model.get_layer("soft").output)
