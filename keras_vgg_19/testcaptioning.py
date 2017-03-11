@@ -120,6 +120,34 @@ def load_last_saved_model(model_weights_dir):
     return load_model(model_weights_dir + '/' + last_model_fname)
 
 
+def configure_model_weights_dir(model_weights_dir, train):
+    if not path.exists(model_weights_dir):
+        if not train:
+            print 'The directory ', model_weights_dir, ' does not exist, so there are no models to load. Either ' \
+                                        'set -t to True or specify an existing directory that contains model weights.'
+            exit(1)
+
+        # Create the directory for saving model weights after training
+        makedirs(model_weights_dir)
+    elif train:
+        # Directory already exists, but we need to store the new trained models there and overwrite the old models
+
+        # TODO: Check that it's ok to delete this directory
+        # e.g. make sure that the dir is not a parent dir
+
+        # Make sure that the user agrees to delete the old contents of the directory
+        print 'Caution! ', model_weights_dir, ' already exists!' \
+                                              ' Do you want to delete all of its contents? (Y/N): '
+        user_response = raw_input()
+        if user_response == 'Y':
+            print 'Deleting contents of directory', model_weights_dir
+            rmtree(model_weights_dir)
+            makedirs(model_weights_dir)  # rmtree removes the dir as well, so we need to remake it
+        else:
+            print 'Exiting. Please run again with a different directory for the model weights.'
+            exit(0)
+
+
 if __name__ == '__main__':
 
     default_num_partial_caps = 50
@@ -149,23 +177,7 @@ if __name__ == '__main__':
     num_streams = num_partial_caps / stream_size
     model_weights_dir = args.model_weights_dir
 
-    if path.exists(model_weights_dir):
-        # TODO: Check that it's ok to delete this directory
-        # e.g. make sure that the dir is not a parent dir
-
-        # Make sure that the user agrees to delete this directory
-        print 'Caution! ', model_weights_dir, ' already exists!' \
-            ' Do you want to delete all of its contents? (Y/N): '
-        user_response = raw_input()
-        if user_response == 'Y':
-            print 'Deleting contents of directory', model_weights_dir
-            rmtree(model_weights_dir)
-        else:
-            print 'Exiting. Please run again with a different directory for the model weights.'
-            exit(0)
-
-    # Create the directory for saving model weights
-    makedirs(model_weights_dir)
+    configure_model_weights_dir(model_weights_dir, train)
 
     word_to_idx, idx_to_word = load_dicts()
     vocab_size = len(word_to_idx)
