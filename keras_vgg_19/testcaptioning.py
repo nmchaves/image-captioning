@@ -1,7 +1,7 @@
 import sys
 sys.path.append('../') # needed for Azure VM to see utils directory
 
-import os
+from os import path, makedirs, listdir
 from shutil import rmtree
 from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
@@ -107,6 +107,16 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     return images, partial_captions, next_words_one_hot, \
         vocab_size, idx_to_word, word_to_idx
 
+
+def load_last_saved_model(model_weights_dir):
+    # Get all the files in the directory that contains the model weights
+    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s))]
+
+    # Return the model with the largest stream index (the index should be the last char of the filename)
+    last_model_fname = sorted(saved_models, key=lambda ss: ss[-1], reverse=True)[0]
+    return load_model(model_weights_dir + '/' + last_model_fname)
+
+
 if __name__ == '__main__':
 
     default_num_partial_caps = 50
@@ -136,11 +146,11 @@ if __name__ == '__main__':
     num_streams = num_partial_caps / stream_size
     model_weights_dir = args.model_weights_dir
 
-    if os.path.exists(model_weights_dir):
+    if path.exists(model_weights_dir):
         # TODO: Check that it's ok to delete this directory
         # e.g. make sure that the dir is not a parent dir
 
-        # Make sure that the user is fine with deleting this directory
+        # Make sure that the user agrees to delete this directory
         print 'Caution! ', model_weights_dir, ' already exists!' \
             ' Do you want to delete all of its contents? (Y/N): '
         user_response = raw_input()
@@ -152,7 +162,7 @@ if __name__ == '__main__':
             exit(0)
 
     # Create the directory for saving model weights
-    os.makedirs(model_weights_dir)
+    makedirs(model_weights_dir)
 
     word_to_idx, idx_to_word = load_dicts()
     vocab_size = len(word_to_idx)
@@ -191,11 +201,11 @@ if __name__ == '__main__':
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
             model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
-            model.save(model_weights_dir + 'modelweights_stream_' + str(i))
+            model.save(model_weights_dir + '/modelweights_stream_' + str(i))
 
     else:
         # Load the last stream that was saved
-        model = load_model(model_weights_dir + 'modelweights')
+        model = load_last_saved_model(model_weights_dir)
 
     # intermediate_layer_model = Model(input=model.input,
     #                              output=model.get_layer("soft").output)
