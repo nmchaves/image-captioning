@@ -93,7 +93,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         try:
             x = get_image(number,path=coco_dir+'/processed_flatten/')
         except IOError:
-            x = predict_image(str(image_id))[0]
+            x = predict_image(str(image_id))[1]
 
         images.append(x)
 
@@ -219,9 +219,9 @@ if __name__ == '__main__':
 
     # Define the Model
     num_class_features = 1000 # dimensionality of CNN output
-    #class_model = Sequential()
+    class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    #class_model.add(Dense(128, input_dim=num_class_features, activation='tanh')) 
+    class_model.add(Dense(64, input_dim=num_class_features, activation='tanh')) 
 
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
@@ -233,16 +233,16 @@ if __name__ == '__main__':
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
-    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=False))
-    language_model.add(GRU(output_dim=512, return_sequences=True,dropout_U=0.3,dropout_W=0.3))
-    language_model.add(TimeDistributed(Dense(128,activation='tanh'),name="lang"))
+    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=True))
+    language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
+    language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     language_model.add(TimeDistributed(Dropout(0.3)))
     image_model.add(RepeatVector(max_caption_len-1))
-    #class_model.add(RepeatVector(max_caption_len-1))
+    class_model.add(RepeatVector(max_caption_len-1))
     #image_model.add(RepeatVector(1))
     model = Sequential()
-    model.add(Merge([image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(GRU(512, return_sequences=False,dropout_U=0.4,dropout_W=0.4))
+    model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
+    model.add(LSTM(512, return_sequences=False,dropout_U=0.2,dropout_W=0.2))
 
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     model.add(Dense(vocab_size))
@@ -261,8 +261,8 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    early_stopping = EarlyStopping(monitor='val_loss', patience=2)
-            model.fit([images, partial_captions], next_words_one_hot, batch_size=50, nb_epoch=2,validation_split=0.2,callbacks=[early_stopping])
+	    early_stopping = EarlyStopping(monitor='val_loss', patience=0)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
@@ -316,54 +316,67 @@ if __name__ == '__main__':
     # # print(result)
 
     #new_image = images[0].reshape((1, num_img_features))
+    p = '000000000389'
     try:
-        new_image = get_image('000000000036',path=coco_dir+'/processed_flatten/')
+        new_image = get_image(p,path=coco_dir+'/processed_flatten/')
     except IOError:
-        new_image = predict_image('000000000036')[1]
+        new_image = predict_image(p)[1]
+    try:
+        new_class = get_image(p,path=coco_dir+'/processed_predictions/')
+    except IOError:
+        new_class = predict_image(p)[2]
     #new_image = np.zeros((1,num_img_features))
     cap = ['$START$']
     while len(cap) < max_caption_len:
-        result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
-        m = max(result[0])
+        result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+        #m = max(result[0])
         # print(result)
-        out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
+        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
+        
+        out = idx_to_word[np.argmax(result[0])]
         cap.append(out)
         print(cap)
         # if out == STOP_TOKEN:
         #     break
 
+    q = '000000000382'
     try:
-        new_image2 = get_image('000000000731',path=coco_dir+'/processed/')
+        new_image2 = get_image(q,path=coco_dir+'/processed_flatten/')
     except IOError:
-        new_image2 = predict_image('000000000731')
+        new_image2 = predict_image(q)[1]
+    try:
+        new_class2 = get_image(q,path=coco_dir+'/processed_predictions/')
+    except IOError:
+        new_class2 = predict_image(q)[2]
+    print(np.array_equal(new_image,new_image2))
     #new_image = np.zeros((1,num_img_features))
     cap = ['$START$']
+    #new_class2 = np.zeros((1,1000))
+    #new_image2 = np.zeros((1,25088))
     while len(cap) < max_caption_len:
-        result = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])
-        m = max(result[0])
+        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])
+        #m = max(result[0])
         # print(result)
-        out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
+        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
+        out = idx_to_word[np.argmax(result[0])]
         cap.append(out)
         print(cap)
         # if out == STOP_TOKEN:
         #     break
-    try:
-        new_image2 = get_image('000000000731',path=coco_dir+'/processed/')
-    except IOError:
-        new_image2 = predict_image('000000000731')
+
     #new_image = np.zeros((1,num_img_features))
     cap = ['$START$']
+    #new_class = np.zeros((1000))
+    #new_class[0] = 1
     while len(cap) < max_caption_len:
-	result = model.predict([new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+	result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+        result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
 	#inp = np.asarray([result,result2])
 	#inp = relative_probs(inp)
-	lam = 0.2
+	lam = 0.5
 	elem_div = np.divide(result,result2)
 	inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	print(inp)
+	#print(inp)
 	out = idx_to_word[np.argmax(inp)]
         #m = max(inp)
         # print(result)
@@ -374,23 +387,44 @@ if __name__ == '__main__':
         # if out == STOP_TOKEN:
         #     break
 
+
+    cap = ['$START$']
+    #new_class = np.zeros((1000))
+    #new_class[0] = 1
+    while len(cap) < max_caption_len:
+        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+        result2 = model.predict([new_class2,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+        #inp = np.asarray([result,result2])
+        #inp = relative_probs(inp)
+        lam = 0.05
+        elem_div = np.divide(result,result2)
+        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
+        #print(inp)
+        out = idx_to_word[np.argmax(inp)]
+        #m = max(inp)
+        # print(result)
+        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
+        # out = idx_to_word[sample(result[0])]
+        cap.append(out)
+        print(cap)
+
     cap_number = 8
     branch_number = 4
    
-    sents =[ (['$START$'],0)] * cap_number
+    sents =[ (['$START$'],0)] * 8
     #sent_probs = [0] * 8
     lam = 0.5
-    print(sents)
-    while len(sents[0][0]) < max_caption_len:
-	new_sents = [(0,0)]*(cap_number*branch_number)
+    print(cap)
+    while len(sents[0]) < max_caption_len:
+	new_sents = [(0,0)]*32
 	for i,row in enumerate(sents):
 	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
 	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
             inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	    topidx = np.argsort(inp)[0:branch_number]
-	    for j in range(branch_number):
-		new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-	sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+	    top4idx = np.argsort(inp)[0:4]
+	    for j in range(4):
+		new_sents[i*4+j] = (row[0] + [top4idx[j]], row[1] + inp[top4idx[j]])
+	sents = sorted(new_sents,key=lambda x: x[1])[:8]
 	print sents
 	    
         #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])

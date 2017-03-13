@@ -13,6 +13,8 @@ from refexp import Refexp
 
 base_model = VGG19(weights='imagenet')
 model = Model(input=base_model.input, output=base_model.get_layer('fc2').output)
+model2 = Model(input=base_model.input, output=base_model.get_layer('flatten').output)
+model3 = Model(input=base_model.input, output=base_model.get_layer('predictions').output)
 
 refexp_filename='../google_refexp_dataset_release/google_refexp_train_201511_coco_aligned.json'
 coco_filename='../external/coco/annotations/instances_train2014.json'
@@ -45,12 +47,16 @@ def predict_image(file_id):
 	x = preprocess_input(x)
 
 	output = model.predict(x)
+	output2 = model2.predict(x)
+	output3 = model3.predict(x)
 	#h5py alternatively
 	# f = open(datasetDir+'processed/'+img['file_name'],'w')
 	# f.write(output)
 	np.save(file=datasetDir+'processed/'+number, arr=output)
+        np.save(file=datasetDir+'processed_flatten/'+number, arr=output2)
+	np.save(file=datasetDir+'processed_predictions/'+number, arr=output3)
 	# f.close()
-	return output
+	return output,output2,output3
 	# print(file_id)
 	
 if __name__ == '__main__':
