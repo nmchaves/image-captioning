@@ -216,18 +216,18 @@ if __name__ == '__main__':
             embedding_matrix[i] = embedding_vector
 
 
-
+    dropout_param = 0.25
     # Define the Model
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     class_model.add(Dense(64, input_dim=num_class_features, activation='tanh')) 
-
+    class_model.add(Dropout(dropout_param))
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     image_model.add(Dense(512, input_dim=num_img_features, activation='tanh')) 
-    image_model.add(Dropout(0.3))
+    image_model.add(Dropout(dropout_param))
     language_model = Sequential()
     dummy = np.zeros(max_caption_len-1)
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
@@ -236,15 +236,17 @@ if __name__ == '__main__':
     language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=True))
     #language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     #language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
-    language_model.add(TimeDistributed(Dropout(0.3)))
+    #language_model.add(TimeDistributed(Dropout(dropout_param)))
     image_model.add(RepeatVector(max_caption_len-1))
     class_model.add(RepeatVector(max_caption_len-1))
     #image_model.add(RepeatVector(1))
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(LSTM(512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
-    model.add(LSTM(512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
-    model.add(LSTM(512, return_sequences=False,dropout_U=0.2,dropout_W=0.2))
+    model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
+    #model.add(LSTM(256, return_sequences=True,dropout_U=0.3,dropout_W=0.3))
+
+#model.add(LSTM(512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
+    model.add(LSTM(512, return_sequences=False,dropout_U=dropout_param,dropout_W=dropout_param))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     model.add(Dense(vocab_size))
 #model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
@@ -262,8 +264,8 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    early_stopping = EarlyStopping(monitor='val_loss', patience=0)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
+	    early_stopping = EarlyStopping(monitor='val_loss', patience=1)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
@@ -371,10 +373,10 @@ if __name__ == '__main__':
     #new_class[0] = 1
     while len(cap) < max_caption_len:
 	result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+        result2 = model.predict([new_class2,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
 	#inp = np.asarray([result,result2])
 	#inp = relative_probs(inp)
-	lam = 0.5
+	lam = 0.7
 	elem_div = np.divide(result,result2)
 	inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
 	#print(inp)
@@ -397,7 +399,7 @@ if __name__ == '__main__':
         result2 = model.predict([new_class,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
         #inp = np.asarray([result,result2])
         #inp = relative_probs(inp)
-        lam = 0.5
+        lam = 0.7
         elem_div = np.divide(result,result2)
         inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
         #print(inp)
@@ -412,21 +414,35 @@ if __name__ == '__main__':
     cap_number = 8
     branch_number = 4
    
-    sents =[ (['$START$'],0)] * 8
+    sents =[ (['$START$'],0)] * cap_number
     #sent_probs = [0] * 8
     lam = 0.5
-    print(cap)
-    while len(sents[0]) < max_caption_len:
-	new_sents = [(0,0)]*32
-	for i,row in enumerate(sents):
-	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+    print(sents)
+    while len(sents[0][0]) < max_caption_len:
+        new_sents = [('$START$',0)]*(cap_number*branch_number)
+        for i,row in enumerate(sents):
+            #print '!!!!', word_to_idx[0], ' ', len(word_to_idx)
+            result = model.predict([new_class,new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+            result2 = model.predict([new_class2,new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
             inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	    top4idx = np.argsort(inp)[0:4]
-	    for j in range(4):
-		new_sents[i*4+j] = (row[0] + [top4idx[j]], row[1] + inp[top4idx[j]])
-	sents = sorted(new_sents,key=lambda x: x[1])[:8]
-	print sents
+            topidx = np.argsort(inp)[0:branch_number]
+            for j in range(branch_number):
+                new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+        sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+        print sents
+    #cap_number = 8
+    #branch_number = 4
+   
+    #sents =[ (['$START$'],0)] * 8
+    #sent_probs = [0] * 8
+    #lam = 0.5
+    #print(cap)
+    #while len(sents[0]) < max_caption_len:#
+#	new_sents = [(0,0)]*32##
+#	for i,row in enumerate(sents):
+#	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+#	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+ #           inp =  np.log(np.divide(result, result2 ** (1 -
 	    
         #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
 	#result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
