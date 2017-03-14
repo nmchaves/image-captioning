@@ -132,7 +132,8 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     coco_caps = COCO(ann_filename)
 
     # choose categories/images
-    catIds = coco.getCatIds(catNms=[category_name])
+    #catIds = coco.getCatIds(catNms=[category_name])
+    catIds = coco.getCatIds()
     imgIds = list(set(coco.getImgIds(catIds=catIds)))
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
