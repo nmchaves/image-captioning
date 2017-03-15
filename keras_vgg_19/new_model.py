@@ -217,17 +217,22 @@ if __name__ == '__main__':
 
 
     # Define the Model
+<<<<<<< HEAD
     dropout_param = 0.2
+=======
+    dropout_param = 0.25
+    recurrent_dropout_param = 0.0
+>>>>>>> 00c171e10fc6670eb9907c39d9099c6a70a78af9
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    class_model.add(Dense(64, input_dim=num_class_features, activation='relu'))
+    class_model.add(Dense(64, input_dim=num_class_features, activation='tanh'))
     class_model.add(Dropout(dropout_param)) 
 
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    image_model.add(Dense(512, input_dim=num_img_features, activation='relu')) 
+    image_model.add(Dense(512, input_dim=num_img_features, activation='tanh')) 
     image_model.add(Dropout(dropout_param))
     language_model = Sequential()
     dummy = np.zeros(max_caption_len-1)
@@ -235,17 +240,23 @@ if __name__ == '__main__':
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
     language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=False))
+<<<<<<< HEAD
     #language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     #language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     #language_model.add(TimeDistributed(Dropout(dropout_param)))
+=======
+    # language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
+    language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
+    language_model.add(TimeDistributed(Dropout(dropout_param)))
+>>>>>>> 00c171e10fc6670eb9907c39d9099c6a70a78af9
     image_model.add(RepeatVector(max_caption_len-1))
     class_model.add(RepeatVector(max_caption_len-1))
     #image_model.add(RepeatVector(1))
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
-    # model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
-    model.add(LSTM(512, return_sequences=False,dropout_U=dropout_param,dropout_W=dropout_param))
+    model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    # model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    model.add(LSTM(512, return_sequences=False,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     model.add(Dense(vocab_size))
 #model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
@@ -361,7 +372,10 @@ if __name__ == '__main__':
     # def pragmatic_listener():
 
 
-
+    def literal_listener(ids, caption):
+        pass
+    def pragmatic_listener(ids, caption, alternative_ids):
+        pass
 
     def beam_search_speaker(target,distractor,lam, cap_number,branch_number):
    
