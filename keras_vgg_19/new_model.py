@@ -320,17 +320,17 @@ if __name__ == '__main__':
 
     def image_grab(id):
         try:
-        new_image = get_image(id,path=coco_dir+'/processed_flatten/')
+            new_image = get_image(id,path=coco_dir+'/processed_flatten/')
         except IOError:
             new_image = predict_image(id)[1]
         try:
             new_class = get_image(id,path=coco_dir+'/processed_predictions/')
         except IOError:
             new_class = predict_image(id)[2]
-
+        return new_class,new_image
 
     def unroll(id):
-        image = image_grab(id)
+        new_class,new_image = image_grab(id)
         cap = ['$START$']
         while len(cap) < max_caption_len:
             result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
