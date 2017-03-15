@@ -4,7 +4,7 @@ sys.path.append('../') # needed for Azure VM to see utils directory
 from keras.regularizers import l2, activity_l2
 from keras.callbacks import EarlyStopping
 from os import path, makedirs, listdir, remove
-from shutil import rmtree
+
 from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
@@ -123,17 +123,25 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         vocab_size, idx_to_word, word_to_idx
 
 
+# Get all the model weight files in the directory that contains the model weights
+def get_saved_model_files(model_weights_dir):
+    return [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
+
+
 def is_saved_model_file(fname):
     fname_split = fname.split('_')
     return fname_split[0:2] == ['modelweights', 'stream']
 
 
+def largest_stream_index(model_filenames):
+    return int(sorted(model_filenames, key=lambda ss: int(ss.split('_')[-1]), reverse=True)[0])
+
+
 def load_last_saved_model(model_weights_dir):
-    # Get all the files in the directory that contains the model weights
-    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
+    saved_models = get_saved_model_files(model_weights_dir)
 
     # Return the model with the largest stream index (the index should be after the last '_' of the filename)
-    last_model_fname = sorted(saved_models, key=lambda ss: ss.split('_')[-1], reverse=True)[0]
+    last_model_fname = largest_stream_index(saved_models)
     return load_model(model_weights_dir + '/' + last_model_fname)
 
 
@@ -152,17 +160,31 @@ def configure_model_weights_dir(model_weights_dir, train):
         # TODO: Check that it's ok to delete this directory
         # e.g. make sure that the dir is not a parent dir
 
-        # Make sure that the user agrees to delete the old contents of the directory
-        print 'Caution! ', model_weights_dir, ' already exists!' \
-                                              ' Do you want to delete all of its contents? (Y/N): '
-        user_response = raw_input()
-        if user_response == 'Y':
-            print 'Deleting contents of directory', model_weights_dir
-            rmtree(model_weights_dir)
-            makedirs(model_weights_dir)  # rmtree removes the dir as well, so we need to remake it
-        else:
-            print 'Exiting. Please run again with a different directory for the model weights.'
-            exit(0)
+        saved_models = get_saved_model_files(model_weights_dir)
+        if len(saved_models) > 0:
+            # At least 1 saved model file already exists in this dir
+            most_recent_stream_num = largest_stream_index(saved_models)
+
+            print 'A directory named ', model_weights_dir, ' already exists, and it contains a model file.\n' \
+                'The last saved stream # was', str(most_recent_stream_num) + '\n' \
+                'Would you like to continue training where you left off? (Y/N): '
+
+            use_existing_stream = raw_input()
+            if use_existing_stream == 'Y':
+                return most_recent_stream_num
+            else:
+                # User wants to start fresh. Make sure that the user agrees to delete the old model files
+                print 'In order to retrain from the beginning, we must delete the previously saved model(s) ' \
+                    'in this directory. Do you want to delete these old model(s)? (Y/N):'
+
+                user_del_response = raw_input()
+                if user_del_response == 'Y':
+                    print 'Deleting old model(s) in the directory ', model_weights_dir
+                    for sm in saved_models:
+                        remove(sm)
+                else:
+                    print 'Exiting. Please run again with a different directory for the model weights.'
+                    exit(0)
 
 
 if __name__ == '__main__':
@@ -194,7 +216,7 @@ if __name__ == '__main__':
     num_streams = num_partial_caps / stream_size
     model_weights_dir = args.model_weights_dir
 
-    configure_model_weights_dir(model_weights_dir, train)
+    last_saved_stream_num = configure_model_weights_dir(model_weights_dir, train)
 
     word_to_idx, idx_to_word = load_dicts()
     vocab_size = len(word_to_idx)
@@ -266,26 +288,29 @@ if __name__ == '__main__':
 
     images = None
     if args.train:
+        # Check if we should start from some previously saved stream
+        if not isinstance(last_saved_stream_num, int):
+            last_saved_stream_num = 0
 
-        for i in range(num_streams):
-            print "Stream #: ", i+1, '/', num_streams
+        for cur_stream_num in range(last_saved_stream_num+1, num_streams+1):
+            print "Stream #: ", cur_stream_num, '/', num_streams
             classes, images, partial_captions, next_words_one_hot, \
-            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
+            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=cur_stream_num, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
             early_stopping = EarlyStopping(monitor='val_loss', patience=2)
             model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
-            model.save(model_weights_dir + '/modelweights_stream_' + str(i))
+            model.save(model_weights_dir + '/modelweights_stream_' + str(cur_stream_num))
 
             # Delete any of the older streams
-            saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
+            saved_models = get_saved_model_files(model_weights_dir)
 
             for sm in saved_models:
                 sm_stream_num = int(sm.split('_')[2])
   
-                if sm_stream_num < i:
+                if sm_stream_num < cur_stream_num:
                     # delete the old stream
                     print 'Deleting saved model for stream', sm_stream_num, ' since we have a newer model now.'
                     remove(sm)
