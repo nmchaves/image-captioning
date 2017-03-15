@@ -372,7 +372,7 @@ if __name__ == '__main__':
    
         sents =[ (['$START$'],0)] * cap_number
         #sent_probs = [0] * 8
-        print(sents)
+        # print(sents)
         while len(sents[0][0]) < max_caption_len:
             new_sents = [(None,0)]*(cap_number*branch_number)
             for i,row in enumerate(sents):
@@ -383,7 +383,7 @@ if __name__ == '__main__':
                 for j in range(branch_number):
                     new_sents[i*branch_number+j] = (row[0] + [idx_to_word[topidx[j]]], row[1] + inp[topidx[j]])
             sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-            print sents
+            # print sents
         return sents
 
     print(beam_search_speaker('000000000431','000000000436',0.4,8,4))
