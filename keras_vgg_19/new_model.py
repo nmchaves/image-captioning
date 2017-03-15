@@ -435,24 +435,24 @@ if __name__ == '__main__':
         print(cap)
 
    
-    cap_number = 8
-    branch_number = 4
+    # cap_number = 8
+    # branch_number = 4
    
-    sents =[ (['$START$'],0)] * cap_number
-    #sent_probs = [0] * 8
-    lam = 0.5
-    print(sents)
-    while len(sents[0][0]) < max_caption_len:
-    new_sents = [(0,0)]*(cap_number*branch_number)
-    for i,row in enumerate(sents):
-        result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-        inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-        topidx = np.argsort(inp)[0:branch_number]
-        for j in range(branch_number):
-            new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-    sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-    print sents
+    # sents =[ (['$START$'],0)] * cap_number
+    # #sent_probs = [0] * 8
+    # lam = 0.5
+    # print(sents)
+    # while len(sents[0][0]) < max_caption_len:
+    #     new_sents = [(0,0)]*(cap_number*branch_number)
+    #     for i,row in enumerate(sents):
+    #         result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+    #         result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+    #         inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+    #         topidx = np.argsort(inp)[0:branch_number]
+    #         for j in range(branch_number):
+    #             new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+    # sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+    # print sents
         
         #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
     #result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
