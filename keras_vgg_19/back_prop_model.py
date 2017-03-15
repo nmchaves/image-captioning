@@ -1,6 +1,7 @@
 import sys
 sys.path.append('../') # needed for Azure VM to see utils directory
 
+import tensorflow as tf
 from keras.regularizers import l2, activity_l2
 from keras.callbacks import EarlyStopping
 from os import path, makedirs, listdir
@@ -277,7 +278,7 @@ if __name__ == '__main__':
 
     model = Sequential()
     #prag_model.add(Merge([model,model2],mode=lambda x: relative_probs(np.asarray(x)),concat_axis=-1))
-    model.add(Merge([model1,model2],mode=lambda x : relative_probs(np.asarray(x)),concat_axis=-1, output_shape=lambda x: x[0]))
+    model.add(Merge([model1,model2],mode=lambda x : tf.log(x[0]) + tf.log(np.divide(x[0],x[1])),concat_axis=-1, output_shape=lambda x: x[0]))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
 
     #opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.01)
