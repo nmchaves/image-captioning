@@ -317,6 +317,31 @@ if __name__ == '__main__':
     # # print(result)
 
     #new_image = images[0].reshape((1, num_img_features))
+
+    def image_grab(id):
+        try:
+        new_image = get_image(id,path=coco_dir+'/processed_flatten/')
+        except IOError:
+            new_image = predict_image(id)[1]
+        try:
+            new_class = get_image(id,path=coco_dir+'/processed_predictions/')
+        except IOError:
+            new_class = predict_image(id)[2]
+
+
+    def unroll(id):
+        image = image_grab(id)
+        cap = ['$START$']
+        while len(cap) < max_caption_len:
+            result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+            out = idx_to_word[np.argmax(result[0])]
+            cap.append(out)
+        return cap
+
+    print(unroll('000000000431'))
+
+
+
     p = '000000000431'
     try:
         new_image = get_image(p,path=coco_dir+'/processed_flatten/')
