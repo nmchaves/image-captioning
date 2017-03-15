@@ -133,7 +133,7 @@ def is_saved_model_file(fname):
 
 
 def largest_stream_index(model_filenames):
-    return sorted([int(fname.split('_')[-1]) for fname in model_filenames], reverse=True)
+    return sorted([int(fname.split('_')[-1]) for fname in model_filenames], reverse=True)[0]
 
 def load_last_saved_model(model_weights_dir):
     saved_models = get_saved_model_files(model_weights_dir)
