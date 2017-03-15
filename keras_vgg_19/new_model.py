@@ -3,7 +3,7 @@ sys.path.append('../') # needed for Azure VM to see utils directory
 
 from keras.regularizers import l2, activity_l2
 from keras.callbacks import EarlyStopping
-from os import path, makedirs, listdir
+from os import path, makedirs, listdir, remove
 from shutil import rmtree
 from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
@@ -123,9 +123,14 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         vocab_size, idx_to_word, word_to_idx
 
 
+def is_saved_model_file(fname):
+    fname_split = fname.split('_')
+    return fname_split[0:2] == ['modelweights', 'stream']
+
+
 def load_last_saved_model(model_weights_dir):
     # Get all the files in the directory that contains the model weights
-    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s))]
+    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
 
     # Return the model with the largest stream index (the index should be after the last '_' of the filename)
     last_model_fname = sorted(saved_models, key=lambda ss: ss.split('_')[-1], reverse=True)[0]
@@ -268,6 +273,16 @@ if __name__ == '__main__':
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
+
+            # Delete any of the older streams
+            saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
+
+            for sm in saved_models:
+                sm_stream_num = sm.split('_')[2]
+                if sm_stream_num < i:
+                    # delete the old stream
+                    print 'Deleting saved model for stream', sm_stream_num, ' since we have a newer model now.'
+                    remove(sm)
 
 
     else:
