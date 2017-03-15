@@ -10,7 +10,6 @@ from keras.applications.imagenet_utils import preprocess_input
 
 import numpy as np
 import cPickle as pickle
-import skimage.io as io
 import matplotlib.pyplot as plt
 import os
 
@@ -180,7 +179,7 @@ def preprocess_refexp():
     
     
 # stream size is in terms of # of partial captions
-def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
+def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_names=[],
                                 out_file='../keras_vgg_19/savedoc', NO_PADDING=False):
     
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -189,7 +188,7 @@ def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, 
     refexp = Refexp(refexp_filename, coco_filename)
     
     # choose categories/images
-    catIds = refexp.getCatIds(catNms=[category_name])
+    catIds = refexp.getCatIds(catNms=category_names)
     imgIds = list(set(refexp.getImgIds(catIds=catIds)))
     annIds = refexp.getAnnIds(imgIds=imgIds)
     anns = refexp.loadAnns(ids=annIds)
@@ -248,7 +247,8 @@ def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, 
     # TODO: handle the case where you request indices out of range
     number_of_items = min(stream_size, total_num_partial_captions)
     item_range = range((stream_num - 1) * stream_size, stream_num * stream_size)
-    X[0] = np.asarray(zip(image_ids,cap_bbox))[item_range]
+    ids_and_bboxes = zip(image_ids,cap_bbox)
+    X[0] = ids_and_bboxes[((stream_num -1)*stream_size):(stream_num*stream_size)]
     X[1] = np.asarray(partial_caps[item_range])
     y = np.asarray(next_words)[item_range]
     out = X, y
@@ -260,7 +260,7 @@ def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, 
 
 
 # stream size is in terms of # of partial captions
-def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
+def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_names=[],
                                 out_file='../keras_vgg_19/savedoc', NO_PADDING=False):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'

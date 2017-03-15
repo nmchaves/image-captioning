@@ -142,7 +142,7 @@ def load_last_saved_model(model_weights_dir):
 
     # Return the model with the largest stream index (the index should be after the last '_' of the filename)
     last_model_fname = largest_stream_index(saved_models)
-    return load_model(model_weights_dir + '/' + last_model_fname)
+    return load_model(model_weights_dir + '/modelweights_stream_' + str(last_model_fname))
 
 
 def configure_model_weights_dir(model_weights_dir, train):
