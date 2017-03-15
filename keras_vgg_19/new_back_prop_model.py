@@ -46,7 +46,7 @@ def sample(preds, temperature=1.0):
 # outputs new probabilites for target image, relative to other images
 # i'm not sure this is a good method to use...
 def relative_probs(all_preds):
-    all_preds = np.asarray(all_preds).astype('float64')
+    # all_preds = np.asarray(all_preds).astype('float64')
     total_preds = np.sum(all_preds,axis=0)
     # division by zero
     return np.divide(all_preds[0],total_preds)
