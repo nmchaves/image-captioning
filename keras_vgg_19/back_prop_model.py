@@ -68,7 +68,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     # Preprocess the data if necessary
     if preprocess:
         preprocess_captioned_images(stream_num=stream_num, stream_size=stream_size, word_to_idx=word_to_idx,
-                                    max_cap_len=max_caption_len, coco_dir=coco_dir, category_name='person',
+                                    max_cap_len=max_caption_len, coco_dir=coco_dir, category_name=[],
                                     out_file=data_path)
 
     with open(data_path, 'rb') as handle:
@@ -306,7 +306,7 @@ if __name__ == '__main__':
 
             alt_classes = np.asarray([switch(x) for x in classes])
 
-	        early_stopping = EarlyStopping(monitor='val_loss', patience=0)
+	    early_stopping = EarlyStopping(monitor='val_loss', patience=0)
             model.fit([classes,images, partial_captions,alt_classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
