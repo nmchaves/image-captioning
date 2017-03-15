@@ -262,7 +262,7 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-        early_stopping = EarlyStopping(monitor='val_loss', patience=0)
+            early_stopping = EarlyStopping(monitor='val_loss', patience=0)
             model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
