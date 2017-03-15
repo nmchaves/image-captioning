@@ -433,7 +433,6 @@ if __name__ == '__main__':
                     new_sents[i*branch_number+j] = (row[0] + [idx_to_word[topidx[j]]], row[1] + inp[topidx[j]])
             sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
             # print sents
-        return sents
+        return ["".join(x[0]) for x in sents]
 
     print(beam_search_speaker('000000000431','000000000436',0.4,8,4))
-
