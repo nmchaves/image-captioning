@@ -180,7 +180,7 @@ def preprocess_refexp():
     
     
 # stream size is in terms of # of partial captions
-def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
+def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_names=[],
                                 out_file='../keras_vgg_19/savedoc', NO_PADDING=False):
     
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -189,7 +189,7 @@ def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, 
     refexp = Refexp(refexp_filename, coco_filename)
     
     # choose categories/images
-    catIds = refexp.getCatIds(catNms=[category_name])
+    catIds = refexp.getCatIds(catNms=category_names)
     imgIds = list(set(refexp.getImgIds(catIds=catIds)))
     annIds = refexp.getAnnIds(imgIds=imgIds)
     anns = refexp.loadAnns(ids=annIds)
@@ -260,7 +260,7 @@ def preprocess_refexp_images(stream_num, stream_size, word_to_idx, max_cap_len, 
 
 
 # stream size is in terms of # of partial captions
-def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_name='person',
+def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_len, coco_dir, category_names=[],
                                 out_file='../keras_vgg_19/savedoc', NO_PADDING=False):
 
     coco_filename= coco_dir+'/annotations/instances_train2014.json'
@@ -270,7 +270,7 @@ def preprocess_captioned_images(stream_num, stream_size, word_to_idx, max_cap_le
     coco_caps = COCO(ann_filename)
 
     # choose categories/images
-    catIds = coco.getCatIds(catNms=[category_name])
+    catIds = coco.getCatIds(catNms=category_names)
     imgIds = list(set(coco.getImgIds(catIds=catIds)))
     annIds = coco_caps.getAnnIds(imgIds)
     anns = coco_caps.loadAnns(annIds)
