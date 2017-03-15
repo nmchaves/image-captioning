@@ -342,8 +342,8 @@ if __name__ == '__main__':
 
 
     def pragmatic_speaker(target,distractor,lam):
-        target_image,target_class = image_grab(target)
-        distractor_image,distractor_class = image_grab(distractor)
+        target_class,target_image = image_grab(target)
+        distractor_class,distractor_image = image_grab(distractor)
         cap = ['$START$']
         while len(cap) < max_caption_len:
             result = model.predict([target_class,target_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
@@ -357,36 +357,33 @@ if __name__ == '__main__':
     print(pragmatic_speaker('000000000431','000000000436',0.4))
 
 
-
-
-        # if out == STOP_TOKEN:
-        #     break
-
-    #new_image = np.zeros((1,num_img_features))
-
-        # if out == STOP_TOKEN:
-        #     break
+    # def pragmatic_listener():
 
 
 
 
+    def beam_search_speaker(target,distractor,lam, cap_number,branch_number):
    
-    cap_number = 8
-    branch_number = 4
+        # cap_number = 8
+        # branch_number = 4
+        target_class,target_image = image_grab(target)
+        distractor_class,distractor_image = image_grab(distractor)
    
-    sents =[ (['$START$'],0)] * cap_number
-    #sent_probs = [0] * 8
-    lam = 0.5
-    print(sents)
-    while len(sents[0][0]) < max_caption_len:
-        new_sents = [(0,0)]*(cap_number*branch_number)
-        for i,row in enumerate(sents):
-            result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-            topidx = np.argsort(inp)[0:branch_number]
-            for j in range(branch_number):
-                new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-        sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-        print sents
+        sents =[ (['$START$'],0)] * cap_number
+        #sent_probs = [0] * 8
+        print(sents)
+        while len(sents[0][0]) < max_caption_len:
+            new_sents = [(None,0)]*(cap_number*branch_number)
+            for i,row in enumerate(sents):
+                result = model.predict([target_class, target_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+                result2 = model.predict([distractor_class,distractor_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+                inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+                topidx = np.argsort(inp)[0:branch_number]
+                for j in range(branch_number):
+                    new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+            sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+            print sents
+        return sents
+
+    print(beam_search_speaker('000000000431','000000000436',0.4,8,4))
 
