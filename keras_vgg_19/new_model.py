@@ -279,7 +279,8 @@ if __name__ == '__main__':
             saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
 
             for sm in saved_models:
-                sm_stream_num = sm.split('_')[2]
+                sm_stream_num = int(sm.split('_')[2])
+  
                 if sm_stream_num < i:
                     # delete the old stream
                     print 'Deleting saved model for stream', sm_stream_num, ' since we have a newer model now.'
