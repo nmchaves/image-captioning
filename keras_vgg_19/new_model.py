@@ -72,9 +72,9 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
                 new_X1.append(x[:-5])
                 new_X0.append(X[0][i])
                 new_y.append(next_words[i])
-	next_words = np.asarray(new_y)
-	X[0] = np.asarray(new_X0)
-	X[1] = np.asarray(new_X1)
+    next_words = np.asarray(new_y)
+    X[0] = np.asarray(new_X0)
+    X[1] = np.asarray(new_X1)
 
     print([([idx_to_word[x] for x in X[1][p]],idx_to_word[next_words[p]]) for (p,q) in enumerate(X[1][:50])])
 
@@ -262,7 +262,7 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    early_stopping = EarlyStopping(monitor='val_loss', patience=0)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=0)
             model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
@@ -317,6 +317,31 @@ if __name__ == '__main__':
     # # print(result)
 
     #new_image = images[0].reshape((1, num_img_features))
+
+    def image_grab(id):
+        try:
+        new_image = get_image(id,path=coco_dir+'/processed_flatten/')
+        except IOError:
+            new_image = predict_image(id)[1]
+        try:
+            new_class = get_image(id,path=coco_dir+'/processed_predictions/')
+        except IOError:
+            new_class = predict_image(id)[2]
+
+
+    def unroll(id):
+        image = image_grab(id)
+        cap = ['$START$']
+        while len(cap) < max_caption_len:
+            result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+            out = idx_to_word[np.argmax(result[0])]
+            cap.append(out)
+        return cap
+
+    print(unroll('000000000431'))
+
+
+
     p = '000000000431'
     try:
         new_image = get_image(p,path=coco_dir+'/processed_flatten/')
@@ -370,15 +395,15 @@ if __name__ == '__main__':
     #new_class = np.zeros((1000))
     #new_class[0] = 1
     while len(cap) < max_caption_len:
-	result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+    result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
         result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-	#inp = np.asarray([result,result2])
-	#inp = relative_probs(inp)
-	lam = 0.5
-	elem_div = np.divide(result,result2)
-	inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#print(inp)
-	out = idx_to_word[np.argmax(inp)]
+    #inp = np.asarray([result,result2])
+    #inp = relative_probs(inp)
+    lam = 0.5
+    elem_div = np.divide(result,result2)
+    inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
+    #print(inp)
+    out = idx_to_word[np.argmax(inp)]
         #m = max(inp)
         # print(result)
         #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
@@ -428,17 +453,17 @@ if __name__ == '__main__':
         new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
     sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
     print sents
-	    
+        
         #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	#result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+    #result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
+    #inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+    #result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
         #inp = np.asarray([result,result2])
         #inp = relative_probs(inp)
         #elem_div = np.divide(result,result2)
         #inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#for i,row in enumerate(inp):
-	    #top_n
+    #for i,row in enumerate(inp):
+        #top_n
         #print(inp)
         #out = idx_to_word[np.argmax(inp)]
         #m = max(inp)
