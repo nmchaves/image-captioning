@@ -17,10 +17,20 @@ import pickle
 from utils.preprocessing import preprocess_captioned_images, load_dicts, STOP_TOKEN
 import argparse
 from cnn_preprocessing import predict_image
-
+import copy
 # todo: keras streaming, variable length sequence, dynamic data
 
 #put in preprocessing
+
+#helper function to take a probability array and switch the two highest probabilities
+def switch(prob):
+    idxs = np.argsort(prob)
+    new_prob = copy.deepcopy(prob)
+    new_prob[idxs[0]] = new_prob[idxs[1]]
+    new_prob[idxs[1]] = new_prob[idxs[0]]  
+    return new_prob
+
+
 def get_image(id,path):
     #possibly pad id with 0s
     return np.load(path+id+'.npy')
@@ -292,8 +302,11 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    early_stopping = EarlyStopping(monitor='val_loss', patience=0)
-            model.fit([classes[:50],images[:50], partial_captions[:50],classes[50:100],images[50:100], partial_captions[:50]], next_words_one_hot[:50], batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
+
+            alt_classes = np.asarray([switch(x) for x in classes])
+
+	        early_stopping = EarlyStopping(monitor='val_loss', patience=0)
+            model.fit([classes,images, partial_captions,alt_classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
@@ -305,178 +318,25 @@ if __name__ == '__main__':
         # Load the last stream that was saved
         model = load_last_saved_model(model_weights_dir)
 
-    # intermediate_layer_model = Model(input=model.input,
-    #                              output=model.get_layer("soft").output)
-    # # new = "LAYER",model.get_layer(name='lang').output
-    # intermediate_output = intermediate_layer_model.predict([new_image,np.zeros((1,50))])
 
-    # intermediate_output2 = intermediate_layer_model.predict([new_image,np.ones((1,50))])
-
-    # print(intermediate_output)
-    # print(intermediate_output2)
-    # print(np.array_equal(intermediate_output,intermediate_output2))
-
-
-
-
-    # cap = "vegetables market".split()
-    # # cap = 
-    # # print(words_to_caption(cap,word_to_idx, max_caption_len))
-    # result = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
-    # print(result[0][np.argmax(result[0])],"PROB DIST")
-    # result = idx_to_word[np.argmax(result[0])]
-    # print(result)
-
-
-
-    # # cap = "piles crowded".split()
-    # new_image = X[0][0].reshape((1,len(X[0][1])))
-    # # new_image = np.zeros(shape=new_image.shape)
-    # # cap = "vegetables market".split()
-    # cap = "carrots and potatoes at a crowded outdoor market carrots and potatoes at a crowded outdoor market carrots and potatoes at a crowded outdoor market".split()
-    # # inp = np.zeros((1,50))
-
-    # # # cap = 
-
-    # # # print(words_to_caption(cap,word_to_idx))
-    # # result = model.predict([new_image, inp])
-    # result2 = model.predict([new_image, words_to_caption(cap,word_to_idx, max_caption_len)])
-    # # print("EQUAL?",np.array_equal(result,result2))
-    # print(result[0][np.argmax(result[0])],"PROB DIST")
-    # result = idx_to_word[np.argmax(result[0])]
-    # # print(result)
-
-    #new_image = images[0].reshape((1, num_img_features))
-    p = '000000000389'
+def image_grab(id):
     try:
-        new_image = get_image(p,path=coco_dir+'/processed_flatten/')
+        new_image = get_image(id,path='/extra'+'/processed_flatten/')
     except IOError:
-        new_image = predict_image(p)[1]
+        new_image = predict_image(id)[1]
     try:
-        new_class = get_image(p,path=coco_dir+'/processed_predictions/')
+        new_class = get_image(id,path='/extra'+'/processed_predictions/')
     except IOError:
-        new_class = predict_image(p)[2]
-    #new_image = np.zeros((1,num_img_features))
+        new_class = predict_image(id)[2]
+    return new_class,new_image
+
+def literal_speaker(id):
+    new_class,new_image = image_grab(id)
     cap = ['$START$']
     while len(cap) < max_caption_len:
         result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        
         out = idx_to_word[np.argmax(result[0])]
         cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
+    return cap
 
-    q = '000000000382'
-    try:
-        new_image2 = get_image(q,path=coco_dir+'/processed_flatten/')
-    except IOError:
-        new_image2 = predict_image(q)[1]
-    try:
-        new_class2 = get_image(q,path=coco_dir+'/processed_predictions/')
-    except IOError:
-        new_class2 = predict_image(q)[2]
-    print(np.array_equal(new_image,new_image2))
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class2 = np.zeros((1,1000))
-    #new_image2 = np.zeros((1,25088))
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        out = idx_to_word[np.argmax(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-	result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-	#inp = np.asarray([result,result2])
-	#inp = relative_probs(inp)
-	lam = 0.5
-	elem_div = np.divide(result,result2)
-	inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#print(inp)
-	out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
-
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class2,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        lam = 0.05
-        elem_div = np.divide(result,result2)
-        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-        #print(inp)
-        out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
-
-    cap_number = 8
-    branch_number = 4
-   
-    sents =[ (['$START$'],0)] * 8
-    #sent_probs = [0] * 8
-    lam = 0.5
-    print(cap)
-    while len(sents[0]) < max_caption_len:
-	new_sents = [(0,0)]*32
-	for i,row in enumerate(sents):
-	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	    top4idx = np.argsort(inp)[0:4]
-	    for j in range(4):
-		new_sents[i*4+j] = (row[0] + [top4idx[j]], row[1] + inp[top4idx[j]])
-	sents = sorted(new_sents,key=lambda x: x[1])[:8]
-	print sents
-	    
-        #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	#result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        #elem_div = np.divide(result,result2)
-        #inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#for i,row in enumerate(inp):
-	    #top_n
-        #print(inp)
-        #out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        #cap.append(out)
-        #print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
-
+print(literal_speaker('000000000431'))
