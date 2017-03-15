@@ -72,9 +72,9 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
                 new_X1.append(x[:-5])
                 new_X0.append(X[0][i])
                 new_y.append(next_words[i])
-    next_words = np.asarray(new_y)
-    X[0] = np.asarray(new_X0)
-    X[1] = np.asarray(new_X1)
+        next_words = np.asarray(new_y)
+        X[0] = np.asarray(new_X0)
+        X[1] = np.asarray(new_X1)
 
     print([([idx_to_word[x] for x in X[1][p]],idx_to_word[next_words[p]]) for (p,q) in enumerate(X[1][:50])])
 
