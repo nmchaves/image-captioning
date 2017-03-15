@@ -395,15 +395,15 @@ if __name__ == '__main__':
     #new_class = np.zeros((1000))
     #new_class[0] = 1
     while len(cap) < max_caption_len:
-    result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
         result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-    #inp = np.asarray([result,result2])
-    #inp = relative_probs(inp)
-    lam = 0.5
-    elem_div = np.divide(result,result2)
-    inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-    #print(inp)
-    out = idx_to_word[np.argmax(inp)]
+        #inp = np.asarray([result,result2])
+        #inp = relative_probs(inp)
+        lam = 0.5
+        elem_div = np.divide(result,result2)
+        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
+        #print(inp)
+        out = idx_to_word[np.argmax(inp)]
         #m = max(inp)
         # print(result)
         #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
@@ -447,10 +447,10 @@ if __name__ == '__main__':
     for i,row in enumerate(sents):
         result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
         result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+        inp =  np.log(np.divide(result, result2 ** (1 - lam)))
         topidx = np.argsort(inp)[0:branch_number]
         for j in range(branch_number):
-        new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+            new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
     sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
     print sents
         
