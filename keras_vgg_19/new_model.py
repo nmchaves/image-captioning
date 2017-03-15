@@ -329,7 +329,7 @@ if __name__ == '__main__':
             new_class = predict_image(id)[2]
         return new_class,new_image
 
-    def unroll(id):
+    def literal_speaker(id):
         new_class,new_image = image_grab(id)
         cap = ['$START$']
         while len(cap) < max_caption_len:
@@ -338,7 +338,23 @@ if __name__ == '__main__':
             cap.append(out)
         return cap
 
-    print(unroll('000000000431'))
+    print(literal_speaker('000000000431'))
+
+
+    def pragmatic_speaker(target,distractor,lam):
+        target_image,target_class = image_grab(target)
+        distractor_image,distractor_class = image_grab(distractor)
+        cap = ['$START$']
+        while len(cap) < max_caption_len:
+            result = model.predict([target_class,target_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+            result2 = model.predict([distractor_class,distractor_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+            elem_div = np.divide(result,result2)
+            inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
+            out = idx_to_word[np.argmax(inp)]
+            cap.append(out)
+        return cap
+
+    print(pragmatic_speaker('000000000431','000000000436',0.4))
 
 
 
@@ -347,48 +363,12 @@ if __name__ == '__main__':
         #     break
 
     #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        lam = 0.5
-        elem_div = np.divide(result,result2)
-        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-        #print(inp)
-        out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
+
         # if out == STOP_TOKEN:
         #     break
 
 
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        lam = 0.5
-        elem_div = np.divide(result,result2)
-        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-        #print(inp)
-        out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
+
 
    
     # cap_number = 8
