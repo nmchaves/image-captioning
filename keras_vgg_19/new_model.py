@@ -221,7 +221,8 @@ if __name__ == '__main__':
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    class_model.add(Dense(64, input_dim=num_class_features, activation='relu')) 
+    class_model.add(Dense(64, input_dim=num_class_features, activation='relu'))
+    class_model.add(Dropout(dropout_param)) 
 
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
@@ -262,8 +263,8 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-            early_stopping = EarlyStopping(monitor='val_loss', patience=0)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])
+            early_stopping = EarlyStopping(monitor='val_loss', patience=1)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
@@ -380,7 +381,7 @@ if __name__ == '__main__':
                 inp =  np.log(np.divide(result, result2 ** (1 - lam)))
                 topidx = np.argsort(inp)[0:branch_number]
                 for j in range(branch_number):
-                    new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+                    new_sents[i*branch_number+j] = (row[0] + [idx_to_word[topidx[j]]], row[1] + inp[topidx[j]])
             sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
             print sents
         return sents
