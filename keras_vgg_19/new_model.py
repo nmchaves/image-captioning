@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     default_num_partial_caps = 50
     data_path = 'preprocess_data'
-    coco_dir = '../external/coco'
+    coco_dir = '/extra'
 
     # Parse program arguments
     parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
@@ -342,51 +342,7 @@ if __name__ == '__main__':
 
 
 
-    p = '000000000431'
-    try:
-        new_image = get_image(p,path=coco_dir+'/processed_flatten/')
-    except IOError:
-        new_image = predict_image(p)[1]
-    try:
-        new_class = get_image(p,path=coco_dir+'/processed_predictions/')
-    except IOError:
-        new_class = predict_image(p)[2]
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        
-        out = idx_to_word[np.argmax(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
 
-    q = '000000000436'
-    try:
-        new_image2 = get_image(q,path=coco_dir+'/processed_flatten/')
-    except IOError:
-        new_image2 = predict_image(q)[1]
-    try:
-        new_class2 = get_image(q,path=coco_dir+'/processed_predictions/')
-    except IOError:
-        new_class2 = predict_image(q)[2]
-    print(np.array_equal(new_image,new_image2))
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class2 = np.zeros((1,1000))
-    #new_image2 = np.zeros((1,25088))
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        out = idx_to_word[np.argmax(result[0])]
-        cap.append(out)
-        print(cap)
         # if out == STOP_TOKEN:
         #     break
 
