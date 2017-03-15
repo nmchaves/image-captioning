@@ -134,7 +134,7 @@ def is_saved_model_file(fname):
 
 
 def largest_stream_index(model_filenames):
-    return int(sorted(model_filenames, key=lambda ss: int(ss.split('_')[-1]), reverse=True)[0])
+    return int(sorted(model_filenames, key=lambda ss: int(ss.split('_')[-1]), reverse=True)[0][-1])
 
 
 def load_last_saved_model(model_weights_dir):
@@ -165,7 +165,7 @@ def configure_model_weights_dir(model_weights_dir, train):
             # At least 1 saved model file already exists in this dir
             most_recent_stream_num = largest_stream_index(saved_models)
 
-            print 'A directory named ', model_weights_dir, ' already exists, and it contains a model file.\n' \
+            print 'A directory named', model_weights_dir, 'already exists, and it contains a model file.\n' \
                 'The last saved stream # was', str(most_recent_stream_num) + '\n' \
                 'Would you like to continue training where you left off? (Y/N): '
 
@@ -181,7 +181,7 @@ def configure_model_weights_dir(model_weights_dir, train):
                 if user_del_response == 'Y':
                     print 'Deleting old model(s) in the directory ', model_weights_dir
                     for sm in saved_models:
-                        remove(sm)
+                        remove(path.join(model_weights_dir, sm))
                 else:
                     print 'Exiting. Please run again with a different directory for the model weights.'
                     exit(0)
@@ -309,7 +309,7 @@ if __name__ == '__main__':
                 if sm_stream_num < cur_stream_num:
                     # delete the old stream
                     print 'Deleting saved model for stream', sm_stream_num, ' since we have a newer model now.'
-                    remove(sm)
+                    remove(path.join(model_weights_dir, sm))
 
 
     else:
