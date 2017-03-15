@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
 
     # Define the Model
-    dropout_param = 0.25
+    dropout_param = 0.2
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
-    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=True))
+    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=False))
     #language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     #language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     #language_model.add(TimeDistributed(Dropout(dropout_param)))
@@ -263,8 +263,8 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-            early_stopping = EarlyStopping(monitor='val_loss', patience=1)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
+            early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(i))
