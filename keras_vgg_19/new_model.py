@@ -56,8 +56,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     # Preprocess the data if necessary
     if preprocess:
         preprocess_captioned_images(stream_num=stream_num, stream_size=stream_size, word_to_idx=word_to_idx,
-                                    max_cap_len=max_caption_len, coco_dir=coco_dir,
-                                    out_file=data_path)
+                                    max_cap_len=max_caption_len, coco_dir=coco_dir, out_file=data_path)
 
     with open(data_path, 'rb') as handle:
         X, next_words = pickle.load(handle)
