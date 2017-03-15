@@ -90,7 +90,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         number = str(('_0000000000000'+str(image_id))[-12:])
 
         try:
-            x = get_image(number,path=coco_dir+'/processed_flatten/')
+            x = get_image(number,path='/extra'+'/processed_flatten/')
         except IOError:
             x = predict_image(str(image_id))[1]
 
@@ -103,7 +103,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         number = str(('_0000000000000'+str(image_id))[-12:])
 
         try:
-            x = get_image(number,path='../external/coco/processed_predictions/')
+            x = get_image(number,path='/extra'+'/processed_predictions/')
         except IOError:
             x = predict_image(str(image_id))[2]
 
@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     default_num_partial_caps = 50
     data_path = 'preprocess_data'
-    coco_dir = '/extra'
+    coco_dir = '../external/coco'
 
     # Parse program arguments
     parser = argparse.ArgumentParser(description='Preprocess image captions if necessary.')
@@ -320,11 +320,11 @@ if __name__ == '__main__':
 
     def image_grab(id):
         try:
-            new_image = get_image(id,path=coco_dir+'/processed_flatten/')
+            new_image = get_image(id,path='/extra'+'/processed_flatten/')
         except IOError:
             new_image = predict_image(id)[1]
         try:
-            new_class = get_image(id,path=coco_dir+'/processed_predictions/')
+            new_class = get_image(id,path='/extra'+'/processed_predictions/')
         except IOError:
             new_class = predict_image(id)[2]
         return new_class,new_image
@@ -371,44 +371,22 @@ if __name__ == '__main__':
 
 
    
-    # cap_number = 8
-    # branch_number = 4
+    cap_number = 8
+    branch_number = 4
    
-    # sents =[ (['$START$'],0)] * cap_number
-    # #sent_probs = [0] * 8
-    # lam = 0.5
-    # print(sents)
-    # while len(sents[0][0]) < max_caption_len:
-    #     new_sents = [(0,0)]*(cap_number*branch_number)
-    #     for i,row in enumerate(sents):
-    #         result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-    #         result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-    #         inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-    #         topidx = np.argsort(inp)[0:branch_number]
-    #         for j in range(branch_number):
-    #             new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-    # sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-    # print sents
-        
-        #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-    #result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-    #inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-    #result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        #elem_div = np.divide(result,result2)
-        #inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-    #for i,row in enumerate(inp):
-        #top_n
-        #print(inp)
-        #out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        #cap.append(out)
-        #print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
+    sents =[ (['$START$'],0)] * cap_number
+    #sent_probs = [0] * 8
+    lam = 0.5
+    print(sents)
+    while len(sents[0][0]) < max_caption_len:
+        new_sents = [(0,0)]*(cap_number*branch_number)
+        for i,row in enumerate(sents):
+            result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+            result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+            topidx = np.argsort(inp)[0:branch_number]
+            for j in range(branch_number):
+                new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+        sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+        print sents
 
