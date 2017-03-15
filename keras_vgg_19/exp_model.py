@@ -19,7 +19,7 @@ import argparse
 from cnn_preprocessing import predict_image
 
 # todo: keras streaming, variable length sequence, dynamic data
-
+#foo
 #put in preprocessing
 def get_image(id,path):
     #possibly pad id with 0s
