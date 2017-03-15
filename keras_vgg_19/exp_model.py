@@ -19,7 +19,6 @@ import argparse
 from cnn_preprocessing import predict_image
 
 # todo: keras streaming, variable length sequence, dynamic data
-
 #put in preprocessing
 def get_image(id,path):
     #possibly pad id with 0s
@@ -218,15 +217,25 @@ if __name__ == '__main__':
 
     dropout_param = 0.25
     # Define the Model
+    dropout_param = 0.25
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
+<<<<<<< HEAD
     class_model.add(Dense(64, input_dim=num_class_features, activation='tanh')) 
     class_model.add(Dropout(dropout_param))
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     image_model.add(Dense(512, input_dim=num_img_features, activation='tanh')) 
+=======
+    class_model.add(Dense(64, input_dim=num_class_features, activation='relu')) 
+
+    num_img_features = 25088 # dimensionality of CNN output
+    image_model = Sequential()
+    #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
+    image_model.add(Dense(512, input_dim=num_img_features, activation='relu')) 
+>>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
     image_model.add(Dropout(dropout_param))
     language_model = Sequential()
     dummy = np.zeros(max_caption_len-1)
@@ -243,9 +252,13 @@ if __name__ == '__main__':
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
     model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
+<<<<<<< HEAD
     #model.add(LSTM(256, return_sequences=True,dropout_U=0.3,dropout_W=0.3))
 
 #model.add(LSTM(512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
+=======
+    # model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
+>>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
     model.add(LSTM(512, return_sequences=False,dropout_U=dropout_param,dropout_W=dropout_param))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     model.add(Dense(vocab_size))
@@ -411,6 +424,7 @@ if __name__ == '__main__':
         cap.append(out)
         print(cap)
 
+   
     cap_number = 8
     branch_number = 4
    
@@ -419,6 +433,7 @@ if __name__ == '__main__':
     lam = 0.5
     print(sents)
     while len(sents[0][0]) < max_caption_len:
+<<<<<<< HEAD
         new_sents = [('$START$',0)]*(cap_number*branch_number)
         for i,row in enumerate(sents):
             #print '!!!!', word_to_idx[0], ' ', len(word_to_idx)
@@ -443,6 +458,18 @@ if __name__ == '__main__':
 #	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
 #	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
  #           inp =  np.log(np.divide(result, result2 ** (1 -
+=======
+    new_sents = [(0,0)]*(cap_number*branch_number)
+    for i,row in enumerate(sents):
+        result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+        result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+        topidx = np.argsort(inp)[0:branch_number]
+        for j in range(branch_number):
+        new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
+    sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+    print sents
+>>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
 	    
         #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
 	#result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
