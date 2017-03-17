@@ -103,29 +103,26 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         number = str(('_0000000000000'+str(image_id[0]))[-12:])
 
         try:
-            x = get_image(number,path='/extra'+'/processed_flatten/')
+            x_whole = get_image(number,path='/extra'+'/processed_flatten/')
+            class_whole = get_image(number,path='/extra'+'/processed_predictions/')
+            x_region = get_image(number + '_b',path='/extra'+'/processed_flatten/')
+            class_region = get_image(number + '_b',path='/extra'+'/processed_predictions/')
+
+            images.append(x_region)
+            classes.append(class_region)
+            alt_images.append(x_whole)
+            alt_classes.append(class_whole)
         except IOError:
             x = predict_image(image_id[0],image_id[1])
-
-
-        images.append(x[4])
+            images.append(x[4])
+            classes.append(x[5])
+            alt_images.append(x[1])
+            alt_classes.append(x[2])
 
     images = np.asarray(images).transpose((1,0,2))[0]
-    alt_images = 
-
-    classes = []
-    for image_id in image_ids:
-        number = str(('_0000000000000'+str(image_id))[-12:])
-
-        try:
-            x = get_image(number,path='/extra'+'/processed_predictions/')
-        except IOError:
-            x = predict_image(image_id[0],image_id[1])[2]
-
-        classes.append(x)
-
+    alt_images = np.asarray(alt_images).transpose((1,0,2))[0]
     classes = np.asarray(classes).transpose((1,0,2))[0]
-    alt_classes = 
+    alt_classes = np.asarray(alt_classes).transpose((1,0,2))[0]
     
 
 
