@@ -2,9 +2,9 @@ import sys
 sys.path.append('../') # needed for Azure VM to see utils directory
 
 from keras.regularizers import l2, activity_l2
-from keras.callbacks import EarlyStopping
-from os import path, makedirs, listdir
-from shutil import rmtree
+from keras.callbacks import EarlyStopping,CSVLogger,ReduceLROnPlateau
+from os import path, makedirs, listdir, remove
+
 from keras.optimizers import Adam
 from keras.models import Sequential, Model,load_model
 from keras.layers import Dense, Activation, \
@@ -20,6 +20,13 @@ from cnn_preprocessing import predict_image
 
 # todo: keras streaming, variable length sequence, dynamic data
 #put in preprocessing
+csv_logger = CSVLogger('training.log')
+    # model.fit(X_train, Y_train, callbacks=[csv_logger])
+
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                  patience=5, min_lr=0.001)
+
+
 def get_image(id,path):
     #possibly pad id with 0s
     return np.load(path+id+'.npy')
@@ -56,8 +63,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     # Preprocess the data if necessary
     if preprocess:
         preprocess_captioned_images(stream_num=stream_num, stream_size=stream_size, word_to_idx=word_to_idx,
-                                    max_cap_len=max_caption_len, coco_dir=coco_dir, category_name='person',
-                                    out_file=data_path)
+                                    max_cap_len=max_caption_len, coco_dir=coco_dir, out_file=data_path,category_names=['person'])
 
     with open(data_path, 'rb') as handle:
         X, next_words = pickle.load(handle)
@@ -72,9 +78,9 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
                 new_X1.append(x[:-5])
                 new_X0.append(X[0][i])
                 new_y.append(next_words[i])
-	next_words = np.asarray(new_y)
-	X[0] = np.asarray(new_X0)
-	X[1] = np.asarray(new_X1)
+        next_words = np.asarray(new_y)
+        X[0] = np.asarray(new_X0)
+        X[1] = np.asarray(new_X1)
 
     print([([idx_to_word[x] for x in X[1][p]],idx_to_word[next_words[p]]) for (p,q) in enumerate(X[1][:50])])
 
@@ -90,7 +96,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         number = str(('_0000000000000'+str(image_id))[-12:])
 
         try:
-            x = get_image(number,path=coco_dir+'/processed_flatten/')
+            x = get_image(number,path='/extra'+'/processed_flatten/')
         except IOError:
             x = predict_image(str(image_id))[1]
 
@@ -103,7 +109,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         number = str(('_0000000000000'+str(image_id))[-12:])
 
         try:
-            x = get_image(number,path='../external/coco/processed_predictions/')
+            x = get_image(number,path='/extra'+'/processed_predictions/')
         except IOError:
             x = predict_image(str(image_id))[2]
 
@@ -123,12 +129,25 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         vocab_size, idx_to_word, word_to_idx
 
 
+# Get all the model weight files in the directory that contains the model weights
+def get_saved_model_files(model_weights_dir):
+    return [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s)) and is_saved_model_file(s)]
+
+
+def is_saved_model_file(fname):
+    fname_split = fname.split('_')
+    return fname_split[0:2] == ['modelweights', 'stream']
+
+
+def largest_stream_index(model_filenames):
+    return sorted([int(fname.split('_')[-1]) for fname in model_filenames], reverse=True)[0]
+
+
 def load_last_saved_model(model_weights_dir):
-    # Get all the files in the directory that contains the model weights
-    saved_models = [s for s in listdir(model_weights_dir) if path.isfile(path.join(model_weights_dir, s))]
+    saved_models = get_saved_model_files(model_weights_dir)
 
     # Return the model with the largest stream index (the index should be after the last '_' of the filename)
-    last_model_fname = sorted(saved_models, key=lambda ss: ss.split('_')[-1], reverse=True)[0]
+    last_model_fname = 'modelweights_stream_' + str(largest_stream_index(saved_models))
     return load_model(model_weights_dir + '/' + last_model_fname)
 
 
@@ -147,17 +166,31 @@ def configure_model_weights_dir(model_weights_dir, train):
         # TODO: Check that it's ok to delete this directory
         # e.g. make sure that the dir is not a parent dir
 
-        # Make sure that the user agrees to delete the old contents of the directory
-        print 'Caution! ', model_weights_dir, ' already exists!' \
-                                              ' Do you want to delete all of its contents? (Y/N): '
-        user_response = raw_input()
-        if user_response == 'Y':
-            print 'Deleting contents of directory', model_weights_dir
-            rmtree(model_weights_dir)
-            makedirs(model_weights_dir)  # rmtree removes the dir as well, so we need to remake it
-        else:
-            print 'Exiting. Please run again with a different directory for the model weights.'
-            exit(0)
+        saved_models = get_saved_model_files(model_weights_dir)
+        if len(saved_models) > 0:
+            # At least 1 saved model file already exists in this dir
+            most_recent_stream_num = largest_stream_index(saved_models)
+
+            print 'A directory named', model_weights_dir, 'already exists, and it contains a model file.\n' \
+                'The last saved stream # was', str(most_recent_stream_num) + '\n' \
+                'Would you like to continue training where you left off? (Y/N): '
+
+            use_existing_stream = raw_input()
+            if use_existing_stream == 'Y':
+                return most_recent_stream_num
+            else:
+                # User wants to start fresh. Make sure that the user agrees to delete the old model files
+                print 'In order to retrain from the beginning, we must delete the previously saved model(s) ' \
+                    'in this directory. Do you want to delete these old model(s)? (Y/N):'
+
+                user_del_response = raw_input()
+                if user_del_response == 'Y':
+                    print 'Deleting old model(s) in the directory ', model_weights_dir
+                    for sm in saved_models:
+                        remove(path.join(model_weights_dir, sm))
+                else:
+                    print 'Exiting. Please run again with a different directory for the model weights.'
+                    exit(0)
 
 
 if __name__ == '__main__':
@@ -189,7 +222,7 @@ if __name__ == '__main__':
     num_streams = num_partial_caps / stream_size
     model_weights_dir = args.model_weights_dir
 
-    configure_model_weights_dir(model_weights_dir, train)
+    last_saved_stream_num = configure_model_weights_dir(model_weights_dir, train)
 
     word_to_idx, idx_to_word = load_dicts()
     vocab_size = len(word_to_idx)
@@ -215,52 +248,44 @@ if __name__ == '__main__':
             embedding_matrix[i] = embedding_vector
 
 
-    dropout_param = 0.25
+
     # Define the Model
-    dropout_param = 0.25
+    dropout_param = 0.3
+    recurrent_dropout_param = 0.2
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-<<<<<<< HEAD
-    class_model.add(Dense(64, input_dim=num_class_features, activation='tanh')) 
-    class_model.add(Dropout(dropout_param))
-    num_img_features = 25088 # dimensionality of CNN output
-    image_model = Sequential()
-    #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    image_model.add(Dense(512, input_dim=num_img_features, activation='tanh')) 
-=======
-    class_model.add(Dense(64, input_dim=num_class_features, activation='relu')) 
+    class_model.add(Dense(64, input_dim=num_class_features, activation='relu'))
+    class_model.add(Dropout(dropout_param)) 
 
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
     image_model.add(Dense(512, input_dim=num_img_features, activation='relu')) 
->>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
     image_model.add(Dropout(dropout_param))
     language_model = Sequential()
     dummy = np.zeros(max_caption_len-1)
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
-    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=True))
+    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=False))
     #language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     #language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     #language_model.add(TimeDistributed(Dropout(dropout_param)))
+    # language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
+    language_model.add(TimeDistributed(Dense(512,activation='relu'),name="lang"))
+    language_model.add(TimeDistributed(Dropout(dropout_param)))
     image_model.add(RepeatVector(max_caption_len-1))
     class_model.add(RepeatVector(max_caption_len-1))
     #image_model.add(RepeatVector(1))
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
-<<<<<<< HEAD
-    #model.add(LSTM(256, return_sequences=True,dropout_U=0.3,dropout_W=0.3))
-
-#model.add(LSTM(512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
-=======
-    # model.add(LSTM(512, return_sequences=True,dropout_U=dropout_param,dropout_W=dropout_param))
->>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
-    model.add(LSTM(512, return_sequences=False,dropout_U=dropout_param,dropout_W=dropout_param))
+    model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    # model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    model.add(LSTM(512, return_sequences=False,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
+    model.add(Dense(512,activation='relu'))
+    model.add(Dropout(dropout_param))
     model.add(Dense(vocab_size))
 #model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
     model.add(Activation('softmax',name='soft'))
@@ -270,18 +295,32 @@ if __name__ == '__main__':
 
     images = None
     if args.train:
+        # Check if we should start from some previously saved stream
+        if not isinstance(last_saved_stream_num, int):
+            last_saved_stream_num = 0
 
-        for i in range(num_streams):
-            print "Stream #: ", i+1, '/', num_streams
+        for cur_stream_num in range(last_saved_stream_num+1, num_streams+1):
+            print "Stream #: ", cur_stream_num, '/', num_streams
             classes, images, partial_captions, next_words_one_hot, \
-            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=i+1, stream_size=stream_size, preprocess=preproc,
+            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=cur_stream_num, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    early_stopping = EarlyStopping(monitor='val_loss', patience=1)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping])
+            early_stopping = EarlyStopping(monitor='val_loss', patience=1)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping,csv_logger,reduce_lr])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
-            model.save(model_weights_dir + '/modelweights_stream_' + str(i))
+            model.save(model_weights_dir + '/modelweights_stream_' + str(cur_stream_num))
+
+            # Delete any of the older streams
+            saved_models = get_saved_model_files(model_weights_dir)
+
+            for sm in saved_models:
+                sm_stream_num = int(sm.split('_')[2])
+  
+                if sm_stream_num < cur_stream_num:
+                    # delete the old stream
+                    print 'Deleting saved model for stream', sm_stream_num, ' since we have a newer model now.'
+                    remove(path.join(model_weights_dir, sm))
 
 
     else:
@@ -335,17 +374,17 @@ if __name__ == '__main__':
 
     def image_grab(id):
         try:
-        new_image = get_image(id,path=coco_dir+'/processed_flatten/')
+            new_image = get_image(id,path='/extra'+'/processed_flatten/')
         except IOError:
             new_image = predict_image(id)[1]
         try:
-            new_class = get_image(id,path=coco_dir+'/processed_predictions/')
+            new_class = get_image(id,path='/extra'+'/processed_predictions/')
         except IOError:
             new_class = predict_image(id)[2]
+        return new_class,new_image
 
-
-    def unroll(id):
-        image = image_grab(id)
+    def literal_speaker(id):
+        new_class,new_image = image_grab(id)
         cap = ['$START$']
         while len(cap) < max_caption_len:
             result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
@@ -353,168 +392,59 @@ if __name__ == '__main__':
             cap.append(out)
         return cap
 
-    print(unroll('000000000431'))
+
+    print("Literal:",literal_speaker('000000000595'))
+    print("Literal:",literal_speaker('000000000597'))
+    #print(literal_speaker('000000000540'))
+    #print(literal_speaker('000000000491'))
+    #print(literal_speaker('000000000490'))
+    #print(literal_speaker('000000000491'))
+
+    def pragmatic_speaker(target,distractor,lam):
+        target_class,target_image = image_grab(target)
+        distractor_class,distractor_image = image_grab(distractor)
+        cap = ['$START$']
+        while len(cap) < max_caption_len:
+            result = model.predict([target_class,target_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+            result2 = model.predict([distractor_class,distractor_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
+            elem_div = np.divide(result,result2)
+            inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
+            out = idx_to_word[np.argmax(inp)]
+            cap.append(out)
+        return cap
+
+    print("Pragmatic:",pragmatic_speaker('000000000595','000000000597',0.6))
 
 
-
-    p = '000000000431'
-    try:
-        new_image = get_image(p,path=coco_dir+'/processed_flatten/')
-    except IOError:
-        new_image = predict_image(p)[1]
-    try:
-        new_class = get_image(p,path=coco_dir+'/processed_predictions/')
-    except IOError:
-        new_class = predict_image(p)[2]
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        
-        out = idx_to_word[np.argmax(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
-    q = '000000000436'
-    try:
-        new_image2 = get_image(q,path=coco_dir+'/processed_flatten/')
-    except IOError:
-        new_image2 = predict_image(q)[1]
-    try:
-        new_class2 = get_image(q,path=coco_dir+'/processed_predictions/')
-    except IOError:
-        new_class2 = predict_image(q)[2]
-    print(np.array_equal(new_image,new_image2))
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class2 = np.zeros((1,1000))
-    #new_image2 = np.zeros((1,25088))
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])
-        #m = max(result[0])
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        out = idx_to_word[np.argmax(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
-
-    #new_image = np.zeros((1,num_img_features))
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-	result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class2,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-	#inp = np.asarray([result,result2])
-	#inp = relative_probs(inp)
-	lam = 0.7
-	elem_div = np.divide(result,result2)
-	inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#print(inp)
-	out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
-        # if out == STOP_TOKEN:
-        #     break
+    # def pragmatic_listener():
 
 
-    cap = ['$START$']
-    #new_class = np.zeros((1000))
-    #new_class[0] = 1
-    while len(cap) < max_caption_len:
-        result = model.predict([new_class2,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_class,new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        lam = 0.7
-        elem_div = np.divide(result,result2)
-        inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-        #print(inp)
-        out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        cap.append(out)
-        print(cap)
+    def literal_listener(ids, caption):
+        pass
+    def pragmatic_listener(ids, caption, alternative_ids):
+        pass
 
+    def beam_search_speaker(target,distractor,lam, cap_number,branch_number):
    
-    cap_number = 8
-    branch_number = 4
+        # cap_number = 8
+        # branch_number = 4
+        target_class,target_image = image_grab(target)
+        distractor_class,distractor_image = image_grab(distractor)
    
-    sents =[ (['$START$'],0)] * cap_number
-    #sent_probs = [0] * 8
-    lam = 0.5
-    print(sents)
-    while len(sents[0][0]) < max_caption_len:
-<<<<<<< HEAD
-        new_sents = [('$START$',0)]*(cap_number*branch_number)
-        for i,row in enumerate(sents):
-            #print '!!!!', word_to_idx[0], ' ', len(word_to_idx)
-            result = model.predict([new_class,new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            result2 = model.predict([new_class2,new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-            topidx = np.argsort(inp)[0:branch_number]
-            for j in range(branch_number):
-                new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-        sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-        print sents
-    #cap_number = 8
-    #branch_number = 4
-   
-    #sents =[ (['$START$'],0)] * 8
-    #sent_probs = [0] * 8
-    #lam = 0.5
-    #print(cap)
-    #while len(sents[0]) < max_caption_len:#
-#	new_sents = [(0,0)]*32##
-#	for i,row in enumerate(sents):
-#	    result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-#	    result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
- #           inp =  np.log(np.divide(result, result2 ** (1 -
-=======
-    new_sents = [(0,0)]*(cap_number*branch_number)
-    for i,row in enumerate(sents):
-        result = model.predict([new_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-        result2 = model.predict([new_image2, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
-            inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-        topidx = np.argsort(inp)[0:branch_number]
-        for j in range(branch_number):
-        new_sents[i*branch_number+j] = (row[0] + [topidx[j]], row[1] + inp[topidx[j]])
-    sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
-    print sents
->>>>>>> d747bdb086633894dd6d62cb645df084c11fe052
-	    
-        #result = np.asarray([model.predict([new_image, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#result2 = np.asarray([model.predict([new_image2, words_to_caption(sent[0],word_to_idx,max_caption_len)])[0] for sent in sents])
-	#inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-	#result2 = model.predict([new_image2, words_to_caption(cap,word_to_idx,max_caption_len)])[0]
-        #inp = np.asarray([result,result2])
-        #inp = relative_probs(inp)
-        #elem_div = np.divide(result,result2)
-        #inp = (lam * np.log(result)) + ((1-lam) * np.log(elem_div) )
-	#for i,row in enumerate(inp):
-	    #top_n
-        #print(inp)
-        #out = idx_to_word[np.argmax(inp)]
-        #m = max(inp)
-        # print(result)
-        #out = idx_to_word[[i for i, j in enumerate(result[0]) if j == m][0]]
-        # out = idx_to_word[sample(result[0])]
-        #cap.append(out)
-        #print(cap)
-        # if out == STOP_TOKEN:
-        #     break
+        sents =[ (['$START$'],0)] * cap_number
+        #sent_probs = [0] * 8
+        # print(sents)
+        while len(sents[0][0]) < max_caption_len:
+            new_sents = [(None,0)]*(cap_number*branch_number)
+            for i,row in enumerate(sents):
+                result = model.predict([target_class, target_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+                result2 = model.predict([distractor_class,distractor_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
+                inp =  np.log(np.divide(result, result2 ** (1 - lam)))
+                topidx = np.argsort(inp)[:branch_number]
+                for j in range(branch_number):
+                    new_sents[i*branch_number+j] = (row[0] + [idx_to_word[topidx[j]]], row[1] + inp[topidx[j]])
+            sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+            # print sents
+        return " ".join(sents[0][0])
 
-
+    print(beam_search_speaker('000000000490','000000000491',0.9,20,10))
