@@ -68,7 +68,7 @@ def predict_image(file_id,bbox=[]):
 		return output,output2,output3
 	else:
 		original = image.load_img(datasetDir+datasetType+number+'.jpg')
-		region = original.crop((bbox[0],bbox[1],bbox[0]+bbox[2],bbox[1]+bbox[3]))
+		region = original.crop((int(bbox[0]),int(bbox[1]),int(bbox[0])+int(bbox[2]),int(bbox[1])+int(bbox[3])))
 		region = region.resize((224,224))
 		region = image.img_to_array(region)
         	region = np.expand_dims(region, axis=0)
