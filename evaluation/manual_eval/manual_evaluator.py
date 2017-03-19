@@ -13,6 +13,7 @@ PRAG_CAP_IDX = 1  # pragmatic captions
 BLINE_CAP_IDX = 2  # baseline captions
 GND_TR_CAP_IDX = 3  # ground truth captions
 
+
 idx_to_cap_type = {
     PRAG_CAP_IDX: 'Pragmatic',
     BLINE_CAP_IDX: 'Baseline',
@@ -30,7 +31,6 @@ def load_test_samples():
             BLINE_CAP_IDX: 'baseline caption...',
             GND_TR_CAP_IDX: 'ground truth caption...'
         }
-        yield ['img_0123', img, idx_to_caption, img_distracter]
 
 
 def display_sample(img, caption, img_distracter):
@@ -105,6 +105,7 @@ def plot_accuracy(acc):
         rects1 = ax.bar(, men_means, width, color='r', yerr=men_std)
 '''
 
+
 if __name__ == '__main__':
     # Use interactive plotting mode so that we can interact with
     # the console while showing images
@@ -161,6 +162,7 @@ if __name__ == '__main__':
 
         if user_quit:
             break
+
         user_inputs.append(user_in)
         user_input_correctness.append(1 if user_in == true_img_pos else 0)
         sample_ids_seen.append(sample_id)
@@ -173,3 +175,4 @@ if __name__ == '__main__':
     plt.ioff()
 
     # todo: ability to merge together different result sets
+
