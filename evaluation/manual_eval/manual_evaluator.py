@@ -13,24 +13,24 @@ PRAG_CAP_IDX = 1  # pragmatic captions
 BLINE_CAP_IDX = 2  # baseline captions
 GND_TR_CAP_IDX = 3  # ground truth captions
 
-def test_samples():
+idx_to_cap_type = {
+    PRAG_CAP_IDX: 'Pragmatic',
+    BLINE_CAP_IDX: 'Baseline',
+    GND_TR_CAP_IDX: 'Ground Truth Label'
+}
+
+def load_test_samples():
     img = io.imread(path.join('', 'man_img.png'))
     img_distracter = io.imread(path.join('', 'horse_img.png'))
 
-    idx_to_caption1 = {
-        PRAG_CAP_IDX: 'pragmatic caption...',
-        BLINE_CAP_IDX: 'baseline caption...',
-        GND_TR_CAP_IDX: 'ground truth caption...'
-    }
-    yield ['img_0123', img, idx_to_caption1, img_distracter]
-
-    idx_to_caption2 = {
-        PRAG_CAP_IDX: 'pragmatic caption...',
-        BLINE_CAP_IDX: 'baseline caption...',
-        GND_TR_CAP_IDX: 'ground truth caption...'
-    }
-    yield ['img_0123', img, idx_to_caption2, img_distracter]
-    #yield ['todo: yield an id for the sample (the image or caption, not sure which)', 'todo: img here', 'todo: caption here', 'todo: distractor img here']
+    for i in range(10):
+        # TODO: load the real data
+        idx_to_caption = {
+            PRAG_CAP_IDX: 'pragmatic caption...',
+            BLINE_CAP_IDX: 'baseline caption...',
+            GND_TR_CAP_IDX: 'ground truth caption...'
+        }
+        yield ['img_0123', img, idx_to_caption, img_distracter]
 
 
 def display_sample(img, caption, img_distracter):
@@ -90,6 +90,21 @@ def user_accuracy(df):
     return acc
 
 
+def print_results(acc_dict):
+    print 20*"="
+    print 'Your accuracy scores for each type of caption (1.0 is max score):'
+    for (cap_type_idx, acc_val) in acc_dict.iteritems():
+        print idx_to_cap_type[cap_type_idx] + ': ' + str(acc_val)
+
+'''
+def plot_accuracy(acc):
+    fig, ax = plt.figure()
+    for cap_type_idx in acc.keys():
+        print 'cap_type', cap_type
+        print 'val', acc[cap_type_idx]
+        rects1 = ax.bar(, men_means, width, color='r', yerr=men_std)
+'''
+
 if __name__ == '__main__':
     # Use interactive plotting mode so that we can interact with
     # the console while showing images
@@ -119,7 +134,7 @@ if __name__ == '__main__':
     user_input_correctness = []
     cap_indices = []
 
-    for i, (sample_id, img, idx_to_caption, img_distracter) in enumerate(test_samples()):
+    for i, (sample_id, img, idx_to_caption, img_distracter) in enumerate(load_test_samples()):
 
         print 20*'='
         print 'Example', i+1
@@ -131,6 +146,7 @@ if __name__ == '__main__':
 
         cap_to_show, cap_idx = rand_caption(idx_to_caption)
         true_img_pos = display_sample(img, cap_to_show, img_distracter)
+        user_quit = False
 
         while True:
             print 'Image 1 or Image 2 (q to quit): '
@@ -140,16 +156,20 @@ if __name__ == '__main__':
                 break
             elif user_in == 'q':
                 print 'Quitting early. Saving partial results.'
-                save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file)
-                exit(0)
+                user_quit = True
+                break
 
+        if user_quit:
+            break
         user_inputs.append(user_in)
         user_input_correctness.append(1 if user_in == true_img_pos else 0)
         sample_ids_seen.append(sample_id)
         cap_indices.append(cap_idx)
 
     df = save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file)
-    print df
-    print user_accuracy(df)
+    acc = user_accuracy(df)
+    print_results(acc)
 
     plt.ioff()
+
+    # todo: ability to merge together different result sets
