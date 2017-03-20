@@ -2,7 +2,9 @@ import sys
 sys.path.append('../external/coco/PythonAPI')
 sys.path.append('../google_refexp_py_lib')
 from pycocotools.coco import COCO
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
 import numpy as np
 
 
@@ -30,8 +32,8 @@ def next_word_idx_to_word(next_word_one_hot, idx_to_word):
 
 
 def save_loss_as_img(history, filename, fig_title='Loss'):
-    plt.plot(history['loss'])
-    plt.plot(history['val_loss'])
+    plt.plot(history['loss'], 'b')
+    plt.plot(history['val_loss'], 'g')
     plt.title(fig_title)
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
