@@ -126,22 +126,6 @@ def merge_results(filenames):
     return merged
 
 
-def print_results(acc_dict):
-    print 20*"="
-    print 'Your accuracy scores for each type of caption (1.0 is max score):'
-    for (cap_type_idx, acc_val) in acc_dict.iteritems():
-        print idx_to_cap_type[cap_type_idx] + ': ' + str(acc_val)
-
-'''
-def plot_accuracy(acc):
-    fig, ax = plt.figure()
-    for cap_type_idx in acc.keys():
-        print 'cap_type', cap_type
-        print 'val', acc[cap_type_idx]
-        rects1 = ax.bar(, men_means, width, color='r', yerr=men_std)
-'''
-
-
 if __name__ == '__main__':
     # Use interactive plotting mode so that we can interact with the console while showing images
     plt.ion()
@@ -150,14 +134,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--synthesize", default=False, action='store_true',
                         help='If true, don\'t show images. Just synthesize the results.')
-    parser.add_argument("-r", "--results", nargs='+', default=[],
-                        help='If synthesizing, this specifies where to load the results from.')
-    parser.add_argument("-res", "--resume", type=str, default='',
+    parser.add_argument("-f", "--files", nargs='+', default=[],
+                        help='If synthesizing, this specifies which files to load the results from.')
+    parser.add_argument("-r", "--resume", type=str, default='',
                         help='The partial results file to use if you want to resume a partially completed run.')
     args = parser.parse_args()
 
     if args.synthesize:
-        filenames = args.results
+        filenames = args.files
         print 'Merging results for files:', ', '.join(filenames)
         results = merge_results(filenames)
         print_results(results)
