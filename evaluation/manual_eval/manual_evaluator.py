@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from random import randint
 import argparse
+from collections import defaultdict
 
 POS_LEFT = 1
 POS_RIGHT = 2
@@ -13,33 +14,37 @@ PRAG_CAP_IDX = 1  # pragmatic captions
 BLINE_CAP_IDX = 2  # baseline captions
 GND_TR_CAP_IDX = 3  # ground truth captions
 
-
 idx_to_cap_type = {
     PRAG_CAP_IDX: 'Pragmatic',
     BLINE_CAP_IDX: 'Baseline',
     GND_TR_CAP_IDX: 'Ground Truth Label'
 }
 
-def load_test_samples():
+
+# TODO: load the real data
+def load_test_samples(start_idx):
     img = io.imread(path.join('', 'man_img.png'))
     img_distracter = io.imread(path.join('', 'horse_img.png'))
 
-    for i in range(10):
+    for i in range(start_idx, 10):
+
         # TODO: load the real data
         idx_to_caption = {
             PRAG_CAP_IDX: 'pragmatic caption...',
             BLINE_CAP_IDX: 'baseline caption...',
             GND_TR_CAP_IDX: 'ground truth caption...'
         }
+        yield ['img id here', img, idx_to_caption, img_distracter]
 
 
-def display_sample(img, caption, img_distracter):
+def display_sample(sample_id, img, caption, img_distracter):
+    print 'Sample ID:', sample_id
 
-    true_img_pos = randint(1,2)
+    true_img_pos = randint(1, 2)
 
-    plt.figure(1, figsize=(8, 6))
+    plt.figure(1, figsize=(12, 10))
 
-    plt.suptitle(caption, ha='center', va='center', fontsize=20)
+    plt.suptitle(caption, fontsize=20, y=0.2)
 
     plt.subplot(1, 2, 1)
     plt.imshow(img if true_img_pos == 1 else img_distracter)
@@ -51,6 +56,7 @@ def display_sample(img, caption, img_distracter):
     plt.title(str(POS_RIGHT))
     plt.axis('off')
 
+    plt.tight_layout()
     plt.draw()
     return true_img_pos
 
@@ -61,93 +67,115 @@ def rand_caption(idx_to_caption):
     return idx_to_caption[rnd_caption_idx], rnd_caption_idx
 
 
-def to_DataFrame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness):
+def lists_to_data_frame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness):
     df = pd.DataFrame(data=np.asarray([cap_indices, user_inputs, user_input_correctness]).T,
                         columns=['caption_indices', 'user_inputs', 'user_input_correctness'])
     df['sample_ids'] = sample_ids_seen  # add string values separately
     return df
 
 
+def data_frame_to_lists(df):
+    return list(df['sample_ids'].values), \
+           list(df['caption_indices'].values), \
+           list(df['user_inputs'].values), \
+           list(df['user_input_correctness'].values)
+
+
 def save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file):
-    df = to_DataFrame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness)
+    df = lists_to_data_frame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness)
     df.to_csv(out_file)
     return df
 
 
-def user_accuracy(df):
-    acc = {}
+def df_to_results_dict(df):
+    results = {}
 
     for idx in [PRAG_CAP_IDX, BLINE_CAP_IDX, GND_TR_CAP_IDX]:
-        print 'idx: ', idx
         examples = df.loc[df['caption_indices'] == idx]
-        print 'ex: ', examples
         n_examples = examples.shape[0]
-        print 'n_examples', n_examples
         if n_examples > 0:
             n_correct = np.sum(examples['user_input_correctness'])
-            acc[idx] = 1.0 * n_correct / n_examples
+            results[idx] = (n_correct, n_examples)
 
-    return acc
+    return results
 
 
-def print_results(acc_dict):
+def print_results(result_dict):
+    total_examples = 0
+
     print 20*"="
     print 'Your accuracy scores for each type of caption (1.0 is max score):'
-    for (cap_type_idx, acc_val) in acc_dict.iteritems():
-        print idx_to_cap_type[cap_type_idx] + ': ' + str(acc_val)
+    for (cap_type_idx, (n_correct, n_examples)) in result_dict.iteritems():
+        total_examples += n_examples
+        acc = 1.0 * n_correct / n_examples
+        print idx_to_cap_type[cap_type_idx] + ': ' + str(acc)
 
-'''
-def plot_accuracy(acc):
-    fig, ax = plt.figure()
-    for cap_type_idx in acc.keys():
-        print 'cap_type', cap_type
-        print 'val', acc[cap_type_idx]
-        rects1 = ax.bar(, men_means, width, color='r', yerr=men_std)
-'''
+    print '(There were', total_examples, 'test examples in total.)'
+
+
+def load_results(filename):
+    results_df = pd.read_csv(filename)
+    return df_to_results_dict(results_df)
+
+
+def merge_results(filenames):
+    result_sets = [load_results(f) for f in filenames]
+
+    merged = defaultdict(lambda: (0, 0))
+    for rs in result_sets:
+        for (cap_type_idx, (n_correct, n_examples)) in rs.iteritems():
+            merged[cap_type_idx] = tuple(map(sum, zip(merged[cap_type_idx], (n_correct, n_examples))))
+    return merged
 
 
 if __name__ == '__main__':
-    # Use interactive plotting mode so that we can interact with
-    # the console while showing images
+    # Use interactive plotting mode so that we can interact with the console while showing images
     plt.ion()
 
-    '''
     # Parse program arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--pragmatic", default=False, action='store_true',
-                        help='If true, include pragmatic captions.')
-    parser.add_argument("-b", "--baseline", default=False, action='store_true',
-                        help='If true, include baseline captions.')
-    parser.add_argument("-g", "--gnd_truth", default=False, action='store_true',
-                        help='If true, include ground truth captions.')
+    parser.add_argument("-s", "--synthesize", default=False, action='store_true',
+                        help='If true, don\'t show images. Just synthesize the results.')
+    parser.add_argument("-f", "--files", nargs='+', default=[],
+                        help='If synthesizing, this specifies which files to load the results from.')
+    parser.add_argument("-r", "--resume", type=str, default='',
+                        help='The partial results file to use if you want to resume a partially completed run.')
     args = parser.parse_args()
-    '''
+
+    if args.synthesize:
+        filenames = args.files
+        print 'Merging results for files:', ', '.join(filenames)
+        results = merge_results(filenames)
+        print_results(results)
+        exit(0)
 
     print 'Time to evaluate performance! You\'ll see images appear on the ' \
         'screen along with a caption. Tell us which image you think the caption was written for.\n' \
         'Type q to quit at any time (your partial results will be saved).'
 
-    print 'Where would you like to save your results? (enter filename):'
+    print 'Where would you like to save your results when you\'re done? (enter filename):'
     out_file = raw_input()
 
-    sample_ids_seen = []
-    user_inputs = []
-    user_input_correctness = []
-    cap_indices = []
+    start_idx = 0
+    if args.resume:
+        sample_ids_seen, cap_indices, user_inputs, user_input_correctness = data_frame_to_lists(pd.read_csv(args.resume))
+        start_idx = len(sample_ids_seen)
+        print 'Continuing from where you left off (you previously saw', start_idx, 'examples).'
+    else:
+        sample_ids_seen = []
+        cap_indices = []
+        user_inputs = []
+        user_input_correctness = []
 
-    for i, (sample_id, img, idx_to_caption, img_distracter) in enumerate(load_test_samples()):
+    for i, (sample_id, img, idx_to_caption, img_distracter) in enumerate(load_test_samples(start_idx)):
 
         print 20*'='
-        print 'Example', i+1
-
-        if i == 0:
-            has_prag_caps = PRAG_CAP_IDX in idx_to_caption
-            has_bline_caps = BLINE_CAP_IDX in idx_to_caption
-            has_gnd_tr_caps = GND_TR_CAP_IDX in idx_to_caption
+        print 'Example', i+start_idx+1
 
         cap_to_show, cap_idx = rand_caption(idx_to_caption)
-        true_img_pos = display_sample(img, cap_to_show, img_distracter)
-        user_quit = False
+        true_img_pos = display_sample(sample_id, img, cap_to_show, img_distracter)
+
+        user_quit = False  # flag to tell if user quits
 
         while True:
             print 'Image 1 or Image 2 (q to quit): '
@@ -169,10 +197,7 @@ if __name__ == '__main__':
         cap_indices.append(cap_idx)
 
     df = save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file)
-    acc = user_accuracy(df)
-    print_results(acc)
+    results = df_to_results_dict(df)
+    print_results(results)
 
     plt.ioff()
-
-    # todo: ability to merge together different result sets
-

@@ -2,6 +2,7 @@ import sys
 sys.path.append('../external/coco/PythonAPI')
 sys.path.append('../google_refexp_py_lib')
 from pycocotools.coco import COCO
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -26,3 +27,13 @@ def indices_to_captions(caption_indices, idx_to_word):
 def next_word_idx_to_word(next_word_one_hot, idx_to_word):
     word_idx = np.nonzero(next_word_one_hot)[0]
     return idx_to_word[word_idx]
+
+
+def save_loss_as_img(history, filename, fig_title='Loss'):
+    plt.plot(history['loss'])
+    plt.plot(history['val_loss'])
+    plt.title(fig_title)
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['train', 'val'], loc='upper left')
+    plt.savefig(filename)
