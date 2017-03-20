@@ -42,8 +42,9 @@ def display_sample(sample_id, img, caption, img_distracter):
 
     true_img_pos = randint(1, 2)
 
-    plt.figure(1, figsize=(8, 6))
-    plt.suptitle(caption, ha='center', va='center', fontsize=20)
+    plt.figure(1, figsize=(12, 10))
+
+    plt.suptitle(caption, fontsize=20, y=0.2)
 
     plt.subplot(1, 2, 1)
     plt.imshow(img if true_img_pos == 1 else img_distracter)
@@ -55,6 +56,7 @@ def display_sample(sample_id, img, caption, img_distracter):
     plt.title(str(POS_RIGHT))
     plt.axis('off')
 
+    plt.tight_layout()
     plt.draw()
     return true_img_pos
 
