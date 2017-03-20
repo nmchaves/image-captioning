@@ -47,7 +47,7 @@ def load_test_example(data_dir, example_dir):
     return target_id, img, idx_to_caption, distractor_id, img_distractor
 
 
-def load_test_examples(start_idx):
+def load_test_examples(start_idx=0):
     # TODO: change this to the non-mock directory once the data is ready
     data_dir = 'manual_eval_data_mock'
 
@@ -56,28 +56,36 @@ def load_test_examples(start_idx):
         yield load_test_example(data_dir, ex_dir)
 
 
-def display_sample(target_id, img, caption, distractor_id, img_distractor):
-    # Convert caption to all lower case with no punctuation
-    caption = ' '.join(text_to_word_sequence(caption))
+def display_2_images(img1, img2, suptitle, figsize=(12, 10)):
+    plt.figure(1, figsize=figsize)
 
-    true_img_pos = randint(1, 2)
-
-    plt.figure(1, figsize=(12, 10))
-
-    plt.suptitle(caption, fontsize=20, y=0.8)
+    if suptitle:
+        plt.suptitle(suptitle, fontsize=20, y=0.8)
 
     plt.subplot(1, 2, 1)
-    plt.imshow(img if true_img_pos == 1 else img_distractor)
+    plt.imshow(img1)
     plt.title(str(POS_LEFT))
     plt.axis('off')
 
     plt.subplot(1, 2, 2)
-    plt.imshow(img if true_img_pos == 2 else img_distractor)
+    plt.imshow(img2)
     plt.title(str(POS_RIGHT))
     plt.axis('off')
 
     plt.tight_layout()
     plt.draw()
+
+
+def display_sample(target_id, img, caption, distractor_id, img_distractor):
+    # Convert caption to all lower case with no punctuation
+    caption = ' '.join(text_to_word_sequence(caption))
+
+    true_img_pos = randint(1, 2)
+    img1 = img if true_img_pos == 1 else img_distractor
+    img2 = img if true_img_pos == 2 else img_distractor
+
+    display_2_images(img1, img2, caption)
+
     return true_img_pos
 
 
