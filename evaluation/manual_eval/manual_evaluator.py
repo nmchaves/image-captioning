@@ -7,6 +7,7 @@ from random import randint
 import argparse
 from collections import defaultdict
 import pickle
+from keras.preprocessing.text import text_to_word_sequence
 
 POS_LEFT = 1
 POS_RIGHT = 2
@@ -56,6 +57,9 @@ def load_test_examples(start_idx):
 
 
 def display_sample(target_id, img, caption, distractor_id, img_distractor):
+    # Convert caption to all lower case with no punctuation
+    caption = ' '.join(text_to_word_sequence(caption))
+
     true_img_pos = randint(1, 2)
 
     plt.figure(1, figsize=(12, 10))
