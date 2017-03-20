@@ -15,6 +15,7 @@ from keras.applications import VGG19
 import numpy as np
 import pickle
 from utils.preprocessing import preprocess_captioned_images, load_dicts, STOP_TOKEN
+from utils.general import save_loss_as_img
 import argparse
 from cnn_preprocessing import predict_image
 
@@ -293,6 +294,11 @@ if __name__ == '__main__':
     #opt = Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.01)
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
+    history = {
+        'loss': [],
+        'val_loss': []
+    }
+
     images = None
     if args.train:
         # Check if we should start from some previously saved stream
@@ -306,10 +312,13 @@ if __name__ == '__main__':
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
             early_stopping = EarlyStopping(monitor='val_loss', patience=1)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping,csv_logger,reduce_lr])
+            fit_hist = model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping,csv_logger,reduce_lr])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(cur_stream_num))
+
+            history['loss'] += fit_hist['loss']
+            history['val_loss'] += fit_hist['val_loss']
 
             # Delete any of the older streams
             saved_models = get_saved_model_files(model_weights_dir)
@@ -329,6 +338,7 @@ if __name__ == '__main__':
         # Load the last stream that was saved
         model = load_last_saved_model(model_weights_dir)
 
+    save_loss_as_img(history, filename='loss_figure')
     # intermediate_layer_model = Model(input=model.input,
     #                              output=model.get_layer("soft").output)
     # # new = "LAYER",model.get_layer(name='lang').output
