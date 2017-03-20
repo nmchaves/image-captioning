@@ -27,6 +27,7 @@ def load_test_samples(start_idx):
     img_distracter = io.imread(path.join('', 'horse_img.png'))
 
     for i in range(start_idx, 10):
+
         # TODO: load the real data
         idx_to_caption = {
             PRAG_CAP_IDX: 'pragmatic caption...',
@@ -123,6 +124,22 @@ def merge_results(filenames):
         for (cap_type_idx, (n_correct, n_examples)) in rs.iteritems():
             merged[cap_type_idx] = tuple(map(sum, zip(merged[cap_type_idx], (n_correct, n_examples))))
     return merged
+
+
+def print_results(acc_dict):
+    print 20*"="
+    print 'Your accuracy scores for each type of caption (1.0 is max score):'
+    for (cap_type_idx, acc_val) in acc_dict.iteritems():
+        print idx_to_cap_type[cap_type_idx] + ': ' + str(acc_val)
+
+'''
+def plot_accuracy(acc):
+    fig, ax = plt.figure()
+    for cap_type_idx in acc.keys():
+        print 'cap_type', cap_type
+        print 'val', acc[cap_type_idx]
+        rects1 = ax.bar(, men_means, width, color='r', yerr=men_std)
+'''
 
 
 if __name__ == '__main__':
