@@ -17,6 +17,7 @@ import pickle
 from utils.preprocessing import preprocess_captioned_images, load_dicts, STOP_TOKEN
 import argparse
 from cnn_preprocessing import predict_image
+#from keras.utils import plot_model
 
 # todo: keras streaming, variable length sequence, dynamic data
 #put in preprocessing
@@ -24,7 +25,7 @@ csv_logger = CSVLogger('training.log')
     # model.fit(X_train, Y_train, callbacks=[csv_logger])
 
 reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                  patience=5, min_lr=0.001)
+                  patience=0, min_lr=0.001)
 
 
 def get_image(id,path):
@@ -63,7 +64,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
     # Preprocess the data if necessary
     if preprocess:
         preprocess_captioned_images(stream_num=stream_num, stream_size=stream_size, word_to_idx=word_to_idx,
-                                    max_cap_len=max_caption_len, coco_dir=coco_dir, out_file=data_path,category_names=['person'])
+                                    max_cap_len=max_caption_len, coco_dir=coco_dir, out_file=data_path,category_names=[])
 
     with open(data_path, 'rb') as handle:
         X, next_words = pickle.load(handle)
@@ -250,41 +251,43 @@ if __name__ == '__main__':
 
 
     # Define the Model
-    dropout_param = 0.3
+    dropout_param = 0.4
     recurrent_dropout_param = 0.2
     num_class_features = 1000 # dimensionality of CNN output
     class_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    class_model.add(Dense(64, input_dim=num_class_features, activation='relu'))
-    class_model.add(Dropout(dropout_param)) 
+    class_model.add(Dense(64, input_dim=num_class_features, activation='tanh'))
+    #class_model.add(Dropout(dropout_param)) 
 
     num_img_features = 25088 # dimensionality of CNN output
     image_model = Sequential()
     #image_model.add(Dense(512, input_dim=num_img_features, activation='tanh',W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    image_model.add(Dense(512, input_dim=num_img_features, activation='relu')) 
-    image_model.add(Dropout(dropout_param))
+    image_model.add(Dense(300, input_dim=num_img_features, activation='tanh')) 
+    #image_model.add(Dropout(dropout_param))
     language_model = Sequential()
     dummy = np.zeros(max_caption_len-1)
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
     #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
     #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
-    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=False))
+    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1,weights=[embedding_matrix],trainable=True))
     #language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     #language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     #language_model.add(TimeDistributed(Dropout(dropout_param)))
     # language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
-    language_model.add(TimeDistributed(Dense(512,activation='relu'),name="lang"))
-    language_model.add(TimeDistributed(Dropout(dropout_param)))
+    #language_model.add(TimeDistributed(Dense(300,activation='tanh'),name="lang"))
+    language_model.add(Dropout(dropout_param))
     image_model.add(RepeatVector(max_caption_len-1))
+    image_model.add(Dropout(dropout_param))
     class_model.add(RepeatVector(max_caption_len-1))
+    class_model.add(Dropout(dropout_param))
     #image_model.add(RepeatVector(1))
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
-    model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    model.add(LSTM(256, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
     # model.add(LSTM(512, return_sequences=True,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
-    model.add(LSTM(512, return_sequences=False,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
+    model.add(LSTM(256, return_sequences=False,dropout_U=recurrent_dropout_param,dropout_W=recurrent_dropout_param))
     #model.add(Dense(vocab_size,W_regularizer=l2(0.01), activity_regularizer=activity_l2(0.01)))
-    model.add(Dense(512,activation='relu'))
+    #model.add(Dense(512,activation='tanh'))
     model.add(Dropout(dropout_param))
     model.add(Dense(vocab_size))
 #model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
@@ -305,12 +308,11 @@ if __name__ == '__main__':
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=cur_stream_num, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-            early_stopping = EarlyStopping(monitor='val_loss', patience=1)
-            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=4,validation_split=0.2,callbacks=[early_stopping,csv_logger,reduce_lr])
+            early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+            model.fit([classes,images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=10,validation_split=0.2,callbacks=[early_stopping,csv_logger,reduce_lr])
             #model.save('modelweights_stream_' + str(i))
             #model.fit([images, partial_captions], next_words_one_hot, batch_size=100, nb_epoch=2)
             model.save(model_weights_dir + '/modelweights_stream_' + str(cur_stream_num))
-
             # Delete any of the older streams
             saved_models = get_saved_model_files(model_weights_dir)
 
@@ -393,8 +395,8 @@ if __name__ == '__main__':
         return cap
 
 
-    print("Literal:",literal_speaker('000000000595'))
-    print("Literal:",literal_speaker('000000000597'))
+    print("Literal:",literal_speaker('000000000650'))
+    print("Literal:",literal_speaker('000000000656'))
     #print(literal_speaker('000000000540'))
     #print(literal_speaker('000000000491'))
     #print(literal_speaker('000000000490'))
@@ -413,7 +415,8 @@ if __name__ == '__main__':
             cap.append(out)
         return cap
 
-    print("Pragmatic:",pragmatic_speaker('000000000595','000000000597',0.6))
+    print("Pragmatic:",pragmatic_speaker('000000000650','000000000656',0.4))
+    print("Pragmatic:",pragmatic_speaker('000000000650','000000000656',0.2))
 
 
     # def pragmatic_listener():
@@ -440,11 +443,16 @@ if __name__ == '__main__':
                 result = model.predict([target_class, target_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
                 result2 = model.predict([distractor_class,distractor_image, words_to_caption(row[0],word_to_idx,max_caption_len)])[0]
                 inp =  np.log(np.divide(result, result2 ** (1 - lam)))
-                topidx = np.argsort(inp)[:branch_number]
+                topidx = np.argsort(inp)[::-1][:branch_number]
                 for j in range(branch_number):
                     new_sents[i*branch_number+j] = (row[0] + [idx_to_word[topidx[j]]], row[1] + inp[topidx[j]])
-            sents = sorted(new_sents,key=lambda x: x[1])[:cap_number]
+            sents = sorted(new_sents,key=lambda x: x[1],reverse=True)[:cap_number]
             # print sents
         return " ".join(sents[0][0])
 
-    print(beam_search_speaker('000000000490','000000000491',0.9,20,10))
+    print(beam_search_speaker('000000000650','000000000656',0.5,20,10))
+    print(beam_search_speaker('000000000650','000000000656',0.8,20,10))
+    print(beam_search_speaker('000000000650','000000000656',0.6,20,10))
+    print(beam_search_speaker('000000000650','000000000656',0.5,30,20))
+
+    #plot_model(model, to_file='model.png')
