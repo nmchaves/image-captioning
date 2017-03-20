@@ -53,11 +53,13 @@ def sample(preds, temperature=1.0):
 # function takes probabilites for all images - first row is for target image
 # outputs new probabilites for target image, relative to other images
 # i'm not sure this is a good method to use...
-def relative_probs(all_preds):
+#def relative_probs(all_preds):
     #all_preds = np.asarray(all_preds).astype('float64')
-    total_preds = np.sum(all_preds,axis=0)
+    #total_preds = np.sum(all_preds,axis=0)
     # division by zero
-    return np.divide(all_preds[0],total_preds)
+    
+ #   return tf.sub(tf.log(all_preds[0]),tf.log(all_preds[1]))
+    #return np.divide(all_preds[0],total_preds)
 
 
 def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_idx):
@@ -105,8 +107,8 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         try:
             x_whole = get_image(number,path='/extra'+'/processed_flatten/')
             class_whole = get_image(number,path='/extra'+'/processed_predictions/')
-            x_region = get_image(number + '_b',path='/extra'+'/processed_flatten/')
-            class_region = get_image(number + '_b',path='/extra'+'/processed_predictions/')
+            x_region = get_image(number,path='/extra'+'/processed_flatten_b/')
+            class_region = get_image(number,path='/extra'+'/processed_predictions_b/')
 
             images.append(x_region)
             classes.append(class_region)
@@ -134,7 +136,7 @@ def load_stream(stream_num, stream_size, preprocess, max_caption_len, word_to_id
         new_next_words.append(a)
     next_words_one_hot = np.asarray(new_next_words)
 
-    return classes, images, partial_captions, next_words_one_hot, \
+    return classes, images, alt_classes, alt_images, partial_captions, next_words_one_hot, \
         vocab_size, idx_to_word, word_to_idx
 
 
@@ -156,7 +158,8 @@ def load_last_saved_model(model_weights_dir):
     saved_models = get_saved_model_files(model_weights_dir)
 
     # Return the model with the largest stream index (the index should be after the last '_' of the filename)
-    last_model_fname = largest_stream_index(saved_models)
+    #last_model_fname = largest_stream_index(saved_models)
+    last_model_fname = 'modelweights_stream_' + str(largest_stream_index(saved_models))
     return load_model(model_weights_dir + '/' + last_model_fname)
 
 
@@ -256,7 +259,13 @@ if __name__ == '__main__':
         # words not found in embedding index will be all-zeros.
             embedding_matrix[i] = embedding_vector
 
-
+#    def relative_probs(all_preds):
+    #all_preds = np.asarray(all_preds).astype('float64')
+    #total_preds = np.sum(all_preds,axis=0)
+    # division by zero
+    
+ #       return tf.sub(tf.log(all_preds[0]),tf.log(all_preds[1]))
+    #return np.divide(all_preds[0],total_preds)
 
     #num_class_features = 1000 # dimensionality of CNN output
     #class_model = Sequential()
@@ -360,16 +369,16 @@ if __name__ == '__main__':
     image_model.add(Dense(512, input_dim=num_img_features, activation='tanh'))
     image_model.add(Dropout(dropout_param))
     language_model = Sequential()
-    dummy = np.zeros(max_caption_len)
+    #dummy = np.zeros(max_caption_len)
     language_model.add(Masking(mask_value=0.0, input_shape=dummy.shape))
 #language_model.add(Masking(mask_value=0.0, input_shape=(partial_captions[0].shape)))
 #language_model.add(Embedding(vocab_size, 512, input_length=max_caption_len-1))
-    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len))
+    language_model.add(Embedding(vocab_size+1, 300, input_length=max_caption_len-1))
 # language_model.add(LSTM(output_dim=512, return_sequences=True,dropout_U=0.2,dropout_W=0.2))
     language_model.add(TimeDistributed(Dense(512,activation='tanh'),name="lang"))
     language_model.add(TimeDistributed(Dropout(dropout_param)))
-    image_model.add(RepeatVector(max_caption_len))
-    class_model.add(RepeatVector(max_caption_len))
+    image_model.add(RepeatVector(max_caption_len-1))
+    class_model.add(RepeatVector(max_caption_len-1))
 #image_model.add(RepeatVector(1))
     model = Sequential()
     model.add(Merge([class_model,image_model, language_model], mode='concat', concat_axis=-1,name='foo'))
@@ -394,7 +403,7 @@ if __name__ == '__main__':
     model1 = model([class_model_input1, image_model_input1, language_model_input1])
     model2 = model([class_model_input2, image_model_input2, language_model_input2])
 
-    bayes_pred = merge([model1,model2],mode=lambda x: relative_probs(np.asarray(x)),concat_axis=-1,output_shape=lambda x:x[0])
+    bayes_pred = merge([model1,model2],mode=lambda x: tf.sub(tf.log(x[0]),tf.log(x[1])),concat_axis=-1,output_shape=lambda x:x[0])
 # merge_model...
 
     final_model = Model(input=[class_model_input1, image_model_input1, language_model_input1,class_model_input2, image_model_input2, language_model_input2],output=bayes_pred)
@@ -417,11 +426,11 @@ if __name__ == '__main__':
 
         for cur_stream_num in range(last_saved_stream_num+1, num_streams+1):
             print "Stream #: ", cur_stream_num, '/', num_streams
-            classes, images, partial_captions, next_words_one_hot, \
+            classes, images, alt_classes,alt_images, partial_captions, next_words_one_hot, \
             vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=cur_stream_num, stream_size=stream_size, preprocess=preproc,
                                                               max_caption_len=max_caption_len, word_to_idx=word_to_idx)
 
-	    alt_classes =  np.asarray([switch(x) for x in classes])
+	    #alt_classes =  np.asarray([switch(x) for x in classes])
 
             early_stopping = EarlyStopping(monitor='val_loss', patience=1)
             final_model.fit([classes,images, partial_captions,alt_classes,alt_images, partial_captions], next_words_one_hot, batch_size=200, nb_epoch=3,validation_split=0.2,callbacks=[early_stopping])            #model.save('modelweights_stream_' + str(i))
@@ -453,28 +462,45 @@ if __name__ == '__main__':
         model = load_last_saved_model(model_weights_dir)
 
     
-
+#    intermediate_layer_model = Model(inputs=model.get_input_at(0),
+ #                                outputs=model.output)
 
 
     def image_grab(id):
-        try:
-            new_image = get_image(id,path='/extra'+'/processed_flatten/')
-        except IOError:
-            new_image = predict_image(id)[1]
-        try:
-            new_class = get_image(id,path='/extra'+'/processed_predictions/')
-        except IOError:
-            new_class = predict_image(id)[2]
-        return new_class,new_image
 
-    def trained_pragmatic__speaker(target,distractor):
-        new_class,new_image = image_grab(target)
-	distractor_class,distractor_image = image_grab(distractor)
+
+        word_to_idx, idx_to_word = load_refexp_dicts()
+
+        classes, images, alt_classes,alt_images, partial_captions, next_words_one_hot, \
+            vocab_size, idx_to_word, word_to_idx = load_stream(stream_num=cur_stream_num, stream_size=stream_size, preprocess=preproc,
+                                                              max_caption_len=max_caption_len, word_to_idx=word_to_idx)
+
+
+        return images[:1],classes[:1],alt_images[:1],alt_classes[:1]
+        # try:
+        #     new_image = get_image(id,path='/extra'+'/processed_flatten/')
+        # except IOError:
+        #     new_image = predict_image(id)[1]
+        # try:
+        #     new_class = get_image(id,path='/extra'+'/processed_predictions/')
+        # except IOError:
+        #     new_class = predict_image(id)[2]
+        # return new_class,new_image
+
+    def trained_pragmatic_speaker(target,distractor):
+ #        new_class,new_image = image_grab(target)
+    # distractor_class,distractor_image = image_grab(distractor)
+        new_image,new_class, distractor_image,distractor_class = image_grab(target)
         cap = ['$START$']
-        while len(cap) < max_caption_len:
-            result = model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len),distractor_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+        while len(cap) < 2:
+            result = final_model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len),distractor_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
             out = idx_to_word[np.argmax(result[0])]
             cap.append(out)
+
+            print(result[0])
+            #intermediate_output = intermediate_layer_model.predict([new_class,new_image, words_to_caption(cap,word_to_idx,max_caption_len)])
+            #print intermediate_output[0]
+
         return cap
 
     print(trained_pragmatic_speaker('000000000431','000000000436'))
