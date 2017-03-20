@@ -1,11 +1,13 @@
 import skimage.io as io
 import matplotlib.pyplot as plt
-from os import path
+from os import path, listdir
 import pandas as pd
 import numpy as np
 from random import randint
 import argparse
 from collections import defaultdict
+import pickle
+from keras.preprocessing.text import text_to_word_sequence
 
 POS_LEFT = 1
 POS_RIGHT = 2
@@ -21,43 +23,69 @@ idx_to_cap_type = {
 }
 
 
-# TODO: load the real data
-def load_test_samples(start_idx):
-    img = io.imread(path.join('', 'man_img.png'))
-    img_distracter = io.imread(path.join('', 'horse_img.png'))
-
-    for i in range(start_idx, 10):
-
-        # TODO: load the real data
-        idx_to_caption = {
-            PRAG_CAP_IDX: 'pragmatic caption...',
-            BLINE_CAP_IDX: 'baseline caption...',
-            GND_TR_CAP_IDX: 'ground truth caption...'
-        }
-        yield ['img id here', img, idx_to_caption, img_distracter]
+def get_child_dirs(dir):
+    return [name for name in listdir(dir) if path.isdir(path.join(dir, name))]
 
 
-def display_sample(sample_id, img, caption, img_distracter):
-    print 'Sample ID:', sample_id
+def sorted_eval_example_dirs(data_dir):
+    dir_names = get_child_dirs(data_dir)
+    return sorted(dir_names, key=lambda name: name.split('_')[1])
 
-    true_img_pos = randint(1, 2)
 
-    plt.figure(1, figsize=(12, 10))
+def load_test_example(data_dir, example_dir):
+    with open(path.join(data_dir, example_dir, 'ids_dict')) as f:
+        ids_dict = pickle.load(f)
+        target_id = ids_dict['target']
+        distractor_id = ids_dict['distractor']
 
-    plt.suptitle(caption, fontsize=20, y=0.2)
+    with open(path.join(data_dir, example_dir, 'caption_dict')) as f:
+        idx_to_caption = pickle.load(f)
+
+    img = io.imread(path.join(data_dir, example_dir, 'img_target.png'))
+    img_distractor = io.imread(path.join(data_dir, example_dir, 'img_distractor.png'))
+
+    return target_id, img, idx_to_caption, distractor_id, img_distractor
+
+
+def load_test_examples(start_idx=0):
+    # TODO: change this to the non-mock directory once the data is ready
+    data_dir = 'manual_eval_data_mock'
+
+    test_example_dirs = sorted_eval_example_dirs(data_dir)
+    for ex_dir in test_example_dirs[start_idx:]:
+        yield load_test_example(data_dir, ex_dir)
+
+
+def display_2_images(img1, img2, suptitle, figsize=(12, 10)):
+    plt.figure(1, figsize=figsize)
+
+    if suptitle:
+        plt.suptitle(suptitle, fontsize=20, y=0.8)
 
     plt.subplot(1, 2, 1)
-    plt.imshow(img if true_img_pos == 1 else img_distracter)
+    plt.imshow(img1)
     plt.title(str(POS_LEFT))
     plt.axis('off')
 
     plt.subplot(1, 2, 2)
-    plt.imshow(img if true_img_pos == 2 else img_distracter)
+    plt.imshow(img2)
     plt.title(str(POS_RIGHT))
     plt.axis('off')
 
     plt.tight_layout()
     plt.draw()
+
+
+def display_sample(target_id, img, caption, distractor_id, img_distractor):
+    # Convert caption to all lower case with no punctuation
+    caption = ' '.join(text_to_word_sequence(caption))
+
+    true_img_pos = randint(1, 2)
+    img1 = img if true_img_pos == 1 else img_distractor
+    img2 = img if true_img_pos == 2 else img_distractor
+
+    display_2_images(img1, img2, caption)
+
     return true_img_pos
 
 
@@ -67,22 +95,25 @@ def rand_caption(idx_to_caption):
     return idx_to_caption[rnd_caption_idx], rnd_caption_idx
 
 
-def lists_to_data_frame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness):
+def lists_to_data_frame(target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness):
     df = pd.DataFrame(data=np.asarray([cap_indices, user_inputs, user_input_correctness]).T,
                         columns=['caption_indices', 'user_inputs', 'user_input_correctness'])
-    df['sample_ids'] = sample_ids_seen  # add string values separately
+    # add string values separately to prevent type conversions
+    df['target_ids'] = target_ids
+    df['distractor_ids'] = distractor_ids
     return df
 
 
 def data_frame_to_lists(df):
-    return list(df['sample_ids'].values), \
+    return list(df['target_ids'].values), \
+           list(df['distractor_ids'].values), \
            list(df['caption_indices'].values), \
            list(df['user_inputs'].values), \
            list(df['user_input_correctness'].values)
 
 
-def save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file):
-    df = lists_to_data_frame(sample_ids_seen, cap_indices, user_inputs, user_input_correctness)
+def save_results(target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness, out_file):
+    df = lists_to_data_frame(target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness)
     df.to_csv(out_file)
     return df
 
@@ -158,22 +189,23 @@ if __name__ == '__main__':
 
     start_idx = 0
     if args.resume:
-        sample_ids_seen, cap_indices, user_inputs, user_input_correctness = data_frame_to_lists(pd.read_csv(args.resume))
-        start_idx = len(sample_ids_seen)
+        target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness = data_frame_to_lists(pd.read_csv(args.resume))
+        start_idx = len(target_ids)
         print 'Continuing from where you left off (you previously saw', start_idx, 'examples).'
     else:
-        sample_ids_seen = []
+        target_ids = []
+        distractor_ids = []
         cap_indices = []
         user_inputs = []
         user_input_correctness = []
 
-    for i, (sample_id, img, idx_to_caption, img_distracter) in enumerate(load_test_samples(start_idx)):
+    for i, (target_id, img, idx_to_caption, distractor_id, img_distractor) in enumerate(load_test_examples(start_idx)):
 
         print 20*'='
         print 'Example', i+start_idx+1
 
         cap_to_show, cap_idx = rand_caption(idx_to_caption)
-        true_img_pos = display_sample(sample_id, img, cap_to_show, img_distracter)
+        true_img_pos = display_sample(target_id, img, cap_to_show, distractor_id, img_distractor)
 
         user_quit = False  # flag to tell if user quits
 
@@ -193,10 +225,11 @@ if __name__ == '__main__':
 
         user_inputs.append(user_in)
         user_input_correctness.append(1 if user_in == true_img_pos else 0)
-        sample_ids_seen.append(sample_id)
+        target_ids.append(target_id)
+        distractor_ids.append(distractor_id)
         cap_indices.append(cap_idx)
 
-    df = save_results(sample_ids_seen, cap_indices, user_inputs, user_input_correctness, out_file)
+    df = save_results(target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness, out_file)
     results = df_to_results_dict(df)
     print_results(results)
 
