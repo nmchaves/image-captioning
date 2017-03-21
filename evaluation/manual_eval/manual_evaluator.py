@@ -12,14 +12,20 @@ from keras.preprocessing.text import text_to_word_sequence
 POS_LEFT = 1
 POS_RIGHT = 2
 
-PRAG_CAP_IDX = 1  # pragmatic captions
-BLINE_CAP_IDX = 2  # baseline captions
-GND_TR_CAP_IDX = 3  # ground truth captions
+GND_TR_CAP_IDX = 1  # ground truth captions
+BLINE_CAP_IDX = 2  # baseline literal captions
+PRAG_CAP_IDX = 3  # pragmatic captions
+PRAG_CAP2_IDX = 4
+BEAM_CAP_IDX = 5
+BEAM_CAP2_IDX = 6
 
 idx_to_cap_type = {
-    PRAG_CAP_IDX: 'Pragmatic',
+    PRAG_CAP_IDX: 'Pragmatic (lambda=0.4)',
     BLINE_CAP_IDX: 'Baseline',
     GND_TR_CAP_IDX: 'Ground Truth Label'
+    PRAG_CAP2_IDX: 'Pragmatic (lambda=0.6)',
+    BEAM_CAP_IDX: 'Pragmatic w/Beam (lambda=0.4)',
+    BEAM_CAP2_IDX: 'Pragmatic w/Beam (lambda=0.6)'
 }
 
 
