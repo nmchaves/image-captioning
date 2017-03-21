@@ -22,7 +22,7 @@ BEAM_CAP2_IDX = 6
 idx_to_cap_type = {
     PRAG_CAP_IDX: 'Pragmatic (lambda=0.4)',
     BLINE_CAP_IDX: 'Baseline',
-    GND_TR_CAP_IDX: 'Ground Truth Label'
+    GND_TR_CAP_IDX: 'Ground Truth Label',
     PRAG_CAP2_IDX: 'Pragmatic (lambda=0.6)',
     BEAM_CAP_IDX: 'Pragmatic w/Beam (lambda=0.4)',
     BEAM_CAP2_IDX: 'Pragmatic w/Beam (lambda=0.6)'
@@ -35,7 +35,7 @@ def get_child_dirs(dir):
 
 def sorted_eval_example_dirs(data_dir):
     dir_names = get_child_dirs(data_dir)
-    return sorted(dir_names, key=lambda name: name.split('_')[1])
+    return sorted(dir_names, key=lambda name: name)
 
 
 def load_test_example(data_dir, example_dir):
@@ -47,15 +47,15 @@ def load_test_example(data_dir, example_dir):
     with open(path.join(data_dir, example_dir, 'caption_dict')) as f:
         idx_to_caption = pickle.load(f)
 
-    img = io.imread(path.join(data_dir, example_dir, 'img_target.png'))
-    img_distractor = io.imread(path.join(data_dir, example_dir, 'img_distractor.png'))
+    img = io.imread(path.join(data_dir, example_dir, target_id+'.jpg'))
+    img_distractor = io.imread(path.join(data_dir, example_dir, distractor_id+'.jpg'))
 
     return target_id, img, idx_to_caption, distractor_id, img_distractor
 
 
 def load_test_examples(start_idx=0):
     # TODO: change this to the non-mock directory once the data is ready
-    data_dir = 'manual_eval_data_mock'
+    data_dir = 'eval_files' #'manual_eval_data_mock'
 
     test_example_dirs = sorted_eval_example_dirs(data_dir)
     for ex_dir in test_example_dirs[start_idx:]:
@@ -103,7 +103,7 @@ def rand_caption(idx_to_caption):
 
 def lists_to_data_frame(target_ids, distractor_ids, cap_indices, user_inputs, user_input_correctness):
     df = pd.DataFrame(data=np.asarray([cap_indices, user_inputs, user_input_correctness]).T,
-                        columns=['caption_indices', 'user_inputs', 'user_input_correctness'])
+                      columns=['caption_indices', 'user_inputs', 'user_input_correctness'])
     # add string values separately to prevent type conversions
     df['target_ids'] = target_ids
     df['distractor_ids'] = distractor_ids
@@ -187,8 +187,8 @@ if __name__ == '__main__':
         exit(0)
 
     print 'Time to evaluate performance! You\'ll see images appear on the ' \
-        'screen along with a caption. Tell us which image you think the caption was written for.\n' \
-        'Type q to quit at any time (your partial results will be saved).'
+          'screen along with a caption. Tell us which image you think the caption was written for.\n' \
+          'Type q to quit at any time (your partial results will be saved).'
 
     print 'Where would you like to save your results when you\'re done? (enter filename):'
     out_file = raw_input()
@@ -240,3 +240,4 @@ if __name__ == '__main__':
     print_results(results)
 
     plt.ioff()
+
